@@ -1,0 +1,21 @@
+{
+  "name": "polla-mundial-2026",
+  "version": "1.0.0",
+  "description": "Sistema de polla para el Mundial de Fútbol 2026",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'Static site — no build needed'",
+    "deploy": "netlify deploy --prod"
+  },
+  "dependencies": {
+    "@netlify/functions": "^2.6.0",
+    "@supabase/supabase-js": "^2.43.0",
+    "nodemailer": "^6.9.13"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.23.5"
+  }
+}

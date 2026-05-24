@@ -1,0 +1,60 @@
+# ============================================================
+# POLLA MUNDIAL 2026 — Configuración Netlify
+# ============================================================
+
+[build]
+  publish = "src"
+  functions = "netlify/functions"
+  command = "npm install"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+# ── REDIRECTS ────────────────────────────────────────────────
+[[redirects]]
+  from = "/app"
+  to = "/app.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 200
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/"
+  to = "/app.html"
+  status = 200
+
+# ── HEADERS DE SEGURIDAD ─────────────────────────────────────
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+[[headers]]
+  for = "/admin.html"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/app.html"
+  [headers.values]
+    Cache-Control = "no-store"
+
+# ── FUNCIONES PROGRAMADAS (CRON) ─────────────────────────────
+# Verificar recordatorios cada minuto
+[functions."scheduled-reminders"]
+  schedule = "* * * * *"
+
+# Sincronizar resultados con API-Football cada 5 minutos
+[functions."scheduled-sync"]
+  schedule = "*/5 * * * *"
