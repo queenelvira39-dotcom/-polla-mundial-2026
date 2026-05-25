@@ -221,10 +221,13 @@ const token = (event.headers.authorization || '').replace('Bearer ', '').trim() 
     const { data: matches } = await query;
 
     // Obtener pronósticos del participante
-    const { data: myPreds } = await supabase
+    const { data: myPreds, error: predError } = await supabase
       .from('predictions')
-      .select('*, points_detail(*)')
+      .select('*')
       .eq('participant_id', participant.id);
+
+console.log('MY PREDS:', JSON.stringify(myPreds));
+console.log('PRED ERROR:', JSON.stringify(predError));
 
     const predMap = {};
     (myPreds || []).forEach(p => { predMap[p.match_id] = p; });
