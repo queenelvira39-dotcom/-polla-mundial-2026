@@ -325,6 +325,7 @@ function renderMatchCard(m) {
   const isLocked = m.is_locked;
   const isFinished = m.status === 'finished';
   const pred = m.my_prediction;
+  console.log('MY PRED for match', m.id, ':', JSON.stringify(pred));
   const pa = pred?.pred_score_a ?? null;
   const pb = pred?.pred_score_b ?? null;
   const hasPred = pa !== null && pb !== null;
