@@ -247,21 +247,32 @@ console.log('PRED ERROR:', JSON.stringify(predError));
     const participant = await getParticipantByToken(token);
     if (!participant) return resp(401, { error: 'No autorizado' });
 
-    const matchId = path.split('/')[2];
-    const { data: match } = await supabase.from('matches').select('*').eq('id', matchId).single();
+    const pathParts = path.split('/').filter(p => p !== '');
+    const matchId = pathParts[1];
+
+    const { data: match } = await supabase
+      .from('matches')
+      .select('*')
+      .eq('id', matchId)
+      .single();
     if (!match) return resp(404, { error: 'Partido no encontrado' });
 
-    const matchStarted = match.status !== 'scheduled' || new Date(match.kickoff_utc) <= new Date();
+    const now = new Date();
+    const kickoff = new Date(match.kickoff_utc);
+    const matchStarted = match.status !== 'scheduled' || kickoff <= now;
 
-    // Solo se revelan pronósticos ajenos si el partido ya inició
     const { data: preds } = await supabase
       .from('predictions')
       .select('*, participants(name, role)')
       .eq('match_id', matchId);
 
+    console.log('PREDS RAW:', JSON.stringify(preds));
+    console.log('MATCH STARTED:', matchStarted);
+    console.log('IS ADMIN:', participant.role);
+
     const result = (preds || []).map(p => {
       const isMine = p.participant_id === participant.id;
-      const isAdmin = requireAdmin(participant);
+      const isAdmin = participant.role === 'admin';
       const canSee = isMine || isAdmin || matchStarted;
       return {
         participant_id: p.participant_id,
