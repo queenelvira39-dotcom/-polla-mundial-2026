@@ -187,8 +187,9 @@ function generateWhatsappMessage(match, pendingList) {
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return resp(200, {});
 
-  const token = event.headers.authorization?.replace('Bearer ', '') || 
-                new URLSearchParams(event.queryStringParameters || {}).get('token');
+const params = event.queryStringParameters || {};
+const token = (event.headers.authorization || '').replace('Bearer ', '').trim() || 
+              params.token || '';
   const path = event.path.replace('/.netlify/functions/api', '').replace('/api', '');
   const method = event.httpMethod;
   let body = {};
