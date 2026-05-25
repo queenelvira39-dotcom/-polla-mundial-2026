@@ -51,10 +51,9 @@
     Cache-Control = "no-store"
 
 # ── FUNCIONES PROGRAMADAS (CRON) ─────────────────────────────
-# Verificar recordatorios cada minuto
-[functions."scheduled-reminders"]
-  schedule = "* * * * *"
+## CRON DESACTIVADO DURANTE PRUEBAS
+# [functions."scheduled-reminders"]
+#   schedule = "* * * * *"
 
-# Sincronizar resultados con API-Football cada 5 minutos
-[functions."scheduled-sync"]
-  schedule = "*/5 * * * *"
+# [functions."scheduled-sync"]
+#   schedule = "*/5 * * * *"
