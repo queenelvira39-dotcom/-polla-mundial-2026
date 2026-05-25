@@ -47,12 +47,16 @@ function resp(statusCode, body) {
 // Validar token de participante
 async function getParticipantByToken(token) {
   if (!token) return null;
-  const { data } = await supabase
+  console.log('TOKEN RECIBIDO:', JSON.stringify(token));
+  console.log('TOKEN LENGTH:', token.length);
+  const { data, error } = await supabase
     .from('participants')
     .select('*')
     .eq('access_token', token)
     .eq('is_active', true)
     .single();
+  console.log('SUPABASE DATA:', JSON.stringify(data));
+  console.log('SUPABASE ERROR:', JSON.stringify(error));
   return data;
 }
 
