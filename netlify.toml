@@ -1,5 +1,5 @@
 # ============================================================
-# POLLA MUNDIAL 2026 — Configuración Netlify
+# POLLA MUNDIAL 2026 v2 — Configuración Netlify
 # ============================================================
 
 [build]
@@ -8,9 +8,9 @@
   command = "npm install"
 
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
 
-# ── REDIRECTS ────────────────────────────────────────────────
+# ── REDIRECTS ─────────────────────────────────────────────────
 [[redirects]]
   from = "/app"
   to = "/app.html"
@@ -31,14 +31,13 @@
   to = "/app.html"
   status = 200
 
-# ── HEADERS DE SEGURIDAD ─────────────────────────────────────
+# ── HEADERS DE SEGURIDAD ──────────────────────────────────────
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
 
 [[headers]]
   for = "/admin.html"
@@ -50,11 +49,9 @@
   [headers.values]
     Cache-Control = "no-store"
 
-# ── FUNCIONES PROGRAMADAS (CRON) ─────────────────────────────
-# Verificar recordatorios cada minuto
-[functions."scheduled-reminders"]
-  schedule = "* * * * *"
-
-# Sincronizar resultados con API-Football cada 5 minutos
-[functions."scheduled-sync"]
-  schedule = "*/5 * * * *"
+# ── CRON JOBS ─────────────────────────────────────────────────
+# Descomenta estas líneas cuando pases a producción:
+# [functions."scheduled-reminders"]
+#   schedule = "* * * * *"
+# [functions."scheduled-sync"]
+#   schedule = "*/5 * * * *"

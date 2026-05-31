@@ -1,19 +1,10 @@
-# Entorno
 .env
 .env.local
 .env.production
-
-# Node
 node_modules/
 npm-debug.log*
-
-# Netlify
 .netlify/
-
-# Sistema operativo
 .DS_Store
 Thumbs.db
-
-# IDE
 .vscode/
 .idea/

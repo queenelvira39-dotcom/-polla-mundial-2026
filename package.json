@@ -1,9 +1,9 @@
 {
   "name": "polla-mundial-2026",
-  "version": "1.0.0",
-  "description": "Sistema de polla para el Mundial de Fútbol 2026",
+  "version": "2.0.0",
+  "description": "Sistema de polla para el Mundial de Fútbol 2026 — con Copa interna y tabla dinámica",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "scripts": {
     "dev": "netlify dev",
