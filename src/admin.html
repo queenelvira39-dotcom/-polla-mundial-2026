@@ -124,6 +124,14 @@ body{font-family:var(--font);background:#F0F4F8;color:var(--text);min-height:100
     </div>
     <div id="summary-box"><p style="font-size:13px;color:var(--text-3)">Toca "Generar" para crear el resumen de hoy para compartir por WhatsApp.</p></div>
   </div>
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div class="card-title" style="margin:0">Backup Google Sheets</div>
+      <button class="btn btn-sm btn-green" onclick="exportCSV()">⬇ Exportar CSV</button>
+    </div>
+    <p style="font-size:12px;color:var(--text-3);line-height:1.5">Descarga todos los datos como CSV y abrelo en Google Sheets para el backup de emergencia.</p>
+    <p style="font-size:11px;margin-top:4px"><a href="https://docs.google.com/spreadsheets/d/1uhN6d05a2vcOXvC9wED-ntV8mQqN2861jPzqjs-g0Zw" target="_blank" style="color:var(--blue)">Abrir Google Sheets compartido</a></p>
+  </div>
 </div>
 
 <!-- PARTICIPANTES -->
@@ -353,6 +361,57 @@ async function loadDashboard() {
 }
 
 // ── RESUMEN DEPORTIVO ─────────────────────────────────────────
+async function exportCSV() {
+  showToast('Generando CSV...');
+  try {
+    const token = localStorage.getItem('polla_token');
+    const res = await fetch(API + '/admin/export/csv?token=' + token);
+    if (!res.ok) { showToast('Error exportando'); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'polla2026_backup_' + new Date().toLocaleDateString('es-CO').replace(/\//g,'-') + '.csv';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    showToast('✓ CSV descargado — importa en Google Sheets');
+  } catch(e) { showToast('Error exportando CSV'); }
+}
+
+async function showMatchPoints(matchId) {
+  const m = allMatches.find(x => x.id === matchId);
+  try {
+    const res = await apiFetch('/admin/matches/' + matchId.trim() + '/points');
+    const details = res.details || [];
+    document.getElementById('modal-container').innerHTML = `
+      <div class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal">
+          <button class="modal-close" onclick="closeModal()">✕</button>
+          <div class="modal-title">Puntos por partido — ${m?.team_a} vs ${m?.team_b}</div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">
+            Resultado real: ${res.match?.score_a ?? '-'} - ${res.match?.score_b ?? '-'}
+            ${res.match?.went_to_penalties ? ' (pen: ' + res.match?.penalty_winner + ')' : ''}
+          </div>
+          <div style="display:grid;grid-template-columns:1fr repeat(4,36px);gap:4px;padding:4px 0;border-bottom:1px solid var(--gray);font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase">
+            <div>Jugador</div><div style="text-align:center">GL</div><div style="text-align:center">GV</div><div style="text-align:center">Res</div><div style="text-align:center">Tot</div>
+          </div>
+          ${details.length ? details.map(d => {
+            const pred = d.pred_score_a !== null ? d.pred_score_a + '-' + d.pred_score_b : '—';
+            return '<div style="display:grid;grid-template-columns:1fr repeat(4,36px);gap:4px;padding:7px 0;border-bottom:1px solid var(--gray);font-size:12px;align-items:center">' +
+              '<div><div style="font-weight:600">' + d.name + '</div><div style="font-size:10px;color:var(--text-3)">Pronóstico: ' + pred + '</div></div>' +
+              '<div style="text-align:center;color:' + (d.pts_score_a ? 'var(--green)' : 'var(--text-3)') + ';font-weight:600">' + d.pts_score_a + '</div>' +
+              '<div style="text-align:center;color:' + (d.pts_score_b ? 'var(--green)' : 'var(--text-3)') + ';font-weight:600">' + d.pts_score_b + '</div>' +
+              '<div style="text-align:center;color:' + (d.pts_winner ? 'var(--blue)' : 'var(--text-3)') + ';font-weight:600">' + d.pts_winner + '</div>' +
+              '<div style="text-align:center;font-size:14px;font-weight:700;color:' + (d.pts_total >= 4 ? 'var(--green)' : d.pts_total > 0 ? 'var(--blue)' : 'var(--text-3)') + '">' + d.pts_total + '</div>' +
+              '</div>';
+          }).join('') : '<div style="text-align:center;color:var(--text-3);padding:16px">Sin datos</div>'}
+          <div style="font-size:10px;color:var(--text-3);margin-top:8px">GL=Gol local · GV=Gol visitante · Res=Resultado</div>
+        </div>
+      </div>
+    `;
+  } catch(e) { showToast('Error cargando puntos'); }
+}
+
 async function generateSummary() {
   const el = document.getElementById('summary-box');
   el.innerHTML = '<div class="loading"><div class="spinner"></div>Generando resumen...</div>';
@@ -453,7 +512,7 @@ function renderModalScores(participantId) {
       ${isKO?`<div class="pen-row">
         <button class="pen-btn" onclick="selModalPen(this,'${matchId}','${m.team_a}')">${getFlag(m.team_a)} ${m.team_a}</button>
         <button class="pen-btn" onclick="selModalPen(this,'${matchId}','${m.team_b}')">${getFlag(m.team_b)} ${m.team_b}</button>
-        <button class="pen-btn" onclick="selModalPen(this,'${matchId}','')">Sin penales</button>
+        
       </div>`:''}
     </div>
   `;
@@ -510,7 +569,7 @@ async function loadMatchesAdmin() {
           ${isKO?`<div class="pen-row">
             <button class="pen-btn" onclick="selPen(this,'${m.id}','${m.team_a}')">${getFlag(m.team_a)} ${m.team_a}</button>
             <button class="pen-btn" onclick="selPen(this,'${m.id}','${m.team_b}')">${getFlag(m.team_b)} ${m.team_b}</button>
-            <button class="pen-btn sel" onclick="selPen(this,'${m.id}','')">Sin penales</button>
+            
           </div>`:''}
           <div style="display:flex;gap:8px;margin-top:8px">
             <button class="btn btn-green" style="flex:1" onclick="saveResult('${m.id}',${isKO})">Guardar resultado</button>
@@ -520,7 +579,10 @@ async function loadMatchesAdmin() {
       ` : `
         <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between">
           <div style="font-size:22px;font-weight:700;color:var(--blue)">${m.score_a} – ${m.score_b}${m.went_to_penalties?` <span style="font-size:13px;color:var(--amber)">(pen: ${m.penalty_winner})</span>`:''}</div>
-          <button class="btn btn-sm" onclick="showMatchPreds('${m.id}')">Ver pronósticos</button>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-sm" onclick="showMatchPreds('${m.id}')">Ver pronósticos</button>
+            <button class="btn btn-sm btn-primary" onclick="showMatchPoints('${m.id}')">Ver puntos</button>
+          </div>
         </div>
       `;
       return `<div class="match-admin-row">

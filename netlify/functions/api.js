@@ -155,13 +155,15 @@ async function generateDailySummary() {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
   const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
 
-  // Partidos de hoy
+  // Partidos de hoy — Colombia UTC-5, dia va de T05:00Z a T04:59Z del dia siguiente
+  const todayStart = new Date(today + 'T05:00:00Z');
+  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
   const { data: todayMatches } = await supabase
     .from('matches')
     .select('*')
     .eq('status', 'finished')
-    .gte('kickoff_utc', today + 'T00:00:00Z')
-    .lt('kickoff_utc', today + 'T23:59:59Z')
+    .gte('kickoff_utc', todayStart.toISOString())
+    .lt('kickoff_utc', todayEnd.toISOString())
     .order('kickoff_utc');
 
   // Tabla actual
@@ -408,6 +410,77 @@ exports.handler = async (event) => {
 
     if (error) return resp(500, { error: error.message });
     return resp(200, { prediction: data });
+  }
+
+  // ── DETALLE DE PUNTOS POR PARTIDO (admin) ────────────────
+  if (path.match(/^\/admin\/matches\/[^/]+\/points$/) && method === 'GET') {
+    const participant = await getParticipantByToken(token);
+    if (!requireAdmin(participant)) return resp(403, { error: 'Solo admins' });
+    const matchId = path.split('/')[3];
+    const { data: match } = await supabase.from('matches').select('*').eq('id', matchId).single();
+    if (!match) return resp(404, { error: 'Partido no encontrado' });
+    const { data: details } = await supabase
+      .from('points_detail')
+      .select('*, participants(name)')
+      .eq('match_id', matchId)
+      .order('pts_total', { ascending: false });
+    const { data: preds } = await supabase
+      .from('predictions')
+      .select('participant_id, pred_score_a, pred_score_b, pred_penalty_winner')
+      .eq('match_id', matchId);
+    const predMap = {};
+    (preds || []).forEach(p => { predMap[p.participant_id] = p; });
+    const enriched = (details || []).map(d => ({
+      name: d.participants?.name,
+      pred_score_a: predMap[d.participant_id]?.pred_score_a ?? null,
+      pred_score_b: predMap[d.participant_id]?.pred_score_b ?? null,
+      pred_penalty_winner: predMap[d.participant_id]?.pred_penalty_winner ?? null,
+      real_score_a: match.score_a,
+      real_score_b: match.score_b,
+      real_penalty_winner: match.penalty_winner,
+      pts_score_a: d.pts_score_a,
+      pts_score_b: d.pts_score_b,
+      pts_winner: d.pts_winner,
+      pts_penalty: d.pts_penalty,
+      pts_total: d.pts_total
+    }));
+    return resp(200, { match, details: enriched });
+  }
+
+  // ── EXPORT CSV (admin) ────────────────────────────────────
+  if (path === '/admin/export/csv' && method === 'GET') {
+    const participant = await getParticipantByToken(token);
+    if (!requireAdmin(participant)) return resp(403, { error: 'Solo admins' });
+    const { data: parts } = await supabase.from('leaderboard').select('*').order('rank');
+    const { data: matches } = await supabase.from('matches').select('*').eq('is_test', false).order('kickoff_utc');
+    const { data: preds } = await supabase.from('predictions').select('*, participants(name)');
+    const { data: pointsD } = await supabase.from('points_detail').select('*, participants(name), matches(team_a,team_b)');
+
+    // CSV tabla de posiciones
+    const NL = '\n';
+    let csv = 'TABLA DE POSICIONES' + NL;
+    csv += 'Pos,Nombre,Pts Goles,Pts Resultado,Pts Penales,Total,Pronosticos' + NL;
+    (parts || []).forEach(p => {
+      csv += p.rank + ',"' + p.name + '",' + (p.pts_scores||0) + ',' + (p.pts_winners||0) + ',' + (p.pts_penalties||0) + ',' + p.total_points + ',' + (p.predictions_made||0) + NL;
+    });
+    csv += NL + 'PUNTOS POR PARTIDO' + NL;
+    csv += 'Jugador,Partido,Pronostico,Gol Local,Gol Visit,Resultado,Penales,Total' + NL;
+    (pointsD || []).forEach(d => {
+      const pred = (preds || []).find(p => p.participant_id === d.participant_id && p.match_id === d.match_id);
+      const pronostico = pred ? (pred.pred_score_a + '-' + pred.pred_score_b) : '-';
+      csv += '"' + (d.participants && d.participants.name ? d.participants.name : '') + '",';
+      csv += '"' + (d.matches ? d.matches.team_a + ' vs ' + d.matches.team_b : '') + '",';
+      csv += pronostico + ',' + d.pts_score_a + ',' + d.pts_score_b + ',' + d.pts_winner + ',' + d.pts_penalty + ',' + d.pts_total + NL;
+    });
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="polla2026_backup.csv"',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: csv
+    };
   }
 
   // ── TABLA DE POSICIONES ───────────────────────────────────

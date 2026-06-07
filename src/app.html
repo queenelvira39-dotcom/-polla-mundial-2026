@@ -380,7 +380,6 @@ function renderMatchCard(m) {
   const isFinished = m.status === 'finished';
   const isFinal = m.phase === 'F' || m.phase === 'final';
   const pred = m.my_prediction;
-  console.log('MY PRED for match', m.id, ':', JSON.stringify(pred));
   const pa = pred?.pred_score_a ?? null;
   const pb = pred?.pred_score_b ?? null;
   const hasPred = pa !== null && pb !== null;
@@ -428,7 +427,6 @@ function renderMatchCard(m) {
       <div class="penalty-row">
         <button class="pen-opt ${pred?.pred_penalty_winner===m.team_a?'selected':''}" onclick="setPenalty('${m.id}','${m.team_a}')">${getFlag(m.team_a)} ${m.team_a}</button>
         <button class="pen-opt ${pred?.pred_penalty_winner===m.team_b?'selected':''}" onclick="setPenalty('${m.id}','${m.team_b}')">${getFlag(m.team_b)} ${m.team_b}</button>
-        <button class="pen-opt ${pred?.pred_penalty_winner===''?'selected':''}" onclick="setPenalty('${m.id}','')">Sin penales</button>
       </div>
     ` : '';
 
