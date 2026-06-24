@@ -277,6 +277,21 @@ exports.handler = async (event) => {
   let body = {};
   try { body = JSON.parse(event.body || '{}'); } catch (e) {}
 
+  // ── ACTUALIZAR PERFIL ───────────────────────────────────────
+  if (path === '/profile/update' && method === 'POST') {
+    const participant = await getParticipantByToken(token);
+    if (!participant) return resp(401, { error: 'No autorizado' });
+    const { name, photo_url, language } = body;
+    const updates = {};
+    if (name && name.trim().length > 0) updates.name = name.trim().slice(0, 50);
+    if (photo_url !== undefined) updates.photo_url = photo_url;
+    if (language && ['es','en','pt'].includes(language)) updates.language = language;
+    if (!Object.keys(updates).length) return resp(400, { error: 'Nada que actualizar' });
+    const { data, error } = await supabase.from('participants').update(updates).eq('id', participant.id).select().single();
+    if (error) return resp(500, { error: error.message });
+    return resp(200, { participant: data });
+  }
+
   // ── AUTH ──────────────────────────────────────────────────
   if (path === '/auth/me' && method === 'GET') {
     const participant = await getParticipantByToken(token);
@@ -330,8 +345,17 @@ exports.handler = async (event) => {
 
     const { data: preds } = await supabase
       .from('predictions')
-      .select('*, participants(name, role)')
+      .select('*')
       .eq('match_id', matchId);
+
+    // Obtener nombres de participantes por separado (fix RLS)
+    const participantIds = (preds || []).map(p => p.participant_id);
+    const { data: partNames } = await supabase
+      .from('participants')
+      .select('id, name')
+      .in('id', participantIds.length > 0 ? participantIds : ['00000000-0000-0000-0000-000000000000']);
+    const nameMap = {};
+    (partNames || []).forEach(p => { nameMap[p.id] = p.name; });
 
     const result = (preds || []).map(p => {
       const isMine = p.participant_id === participant.id;
@@ -339,7 +363,7 @@ exports.handler = async (event) => {
       const canSee = isMine || isAdmin || matchStarted;
       return {
         participant_id: p.participant_id,
-        participant_name: p.participants?.name,
+        participant_name: nameMap[p.participant_id] || 'Jugador',
         pred_score_a: canSee ? p.pred_score_a : null,
         pred_score_b: canSee ? p.pred_score_b : null,
         pred_penalty_winner: canSee ? p.pred_penalty_winner : null,
@@ -483,6 +507,33 @@ exports.handler = async (event) => {
     };
   }
 
+  // ── PUNTOS DEL DÍA ───────────────────────────────────────
+  if (path === '/leaderboard/day' && method === 'GET') {
+    const participant = await getParticipantByToken(token);
+    if (!participant) return resp(401, { error: 'No autorizado' });
+    const date = params.date || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+    const dayStart = new Date(date + 'T05:00:00Z');
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const { data: dayMatches } = await supabase
+      .from('matches').select('id')
+      .gte('kickoff_utc', dayStart.toISOString())
+      .lt('kickoff_utc', dayEnd.toISOString())
+      .eq('status', 'finished');
+    const matchIds = (dayMatches || []).map(m => m.id);
+    if (!matchIds.length) return resp(200, { day_leaderboard: [] });
+    const { data: parts } = await supabase.from('participants').select('id, name').eq('is_active', true);
+    const { data: pts } = await supabase.from('points_detail').select('participant_id, pts_total').in('match_id', matchIds);
+    const dayPts = {};
+    (pts || []).forEach(p => {
+      dayPts[p.participant_id] = (dayPts[p.participant_id] || 0) + p.pts_total;
+    });
+    const result = (parts || [])
+      .map(p => ({ id: p.id, name: p.name, day_points: dayPts[p.id] || 0 }))
+      .sort((a, b) => b.day_points - a.day_points)
+      .map((p, i) => ({ ...p, day_rank: i + 1 }));
+    return resp(200, { day_leaderboard: result, date });
+  }
+
   // ── TABLA DE POSICIONES ───────────────────────────────────
   if (path === '/leaderboard' && method === 'GET') {
     const participant = await getParticipantByToken(token);
@@ -596,23 +647,26 @@ exports.handler = async (event) => {
     const participant = await getParticipantByToken(token);
     if (!requireAdmin(participant)) return resp(403, { error: 'Solo admins' });
 
-    // Obtener top 3 de cada grupo + mejor 4° lugar
+    // 6 grupos de 4: top 2 de cada grupo (12) + 4 mejores terceros (4) = 16
     const { data: standings } = await supabase.from('copa_standings').select('*').order('group_number').order('group_rank');
     if (!standings) return resp(500, { error: 'Sin datos de grupos' });
 
     const classified = [];
-    const fourths = [];
+    const thirds = [];
+    const groups = [...new Set(standings.map(s => s.group_number))];
 
-    for (let g = 1; g <= 5; g++) {
-      const group = standings.filter(s => s.group_number === g);
-      classified.push(...group.filter(s => s.group_rank <= 3));
-      const fourth = group.find(s => s.group_rank === 4);
-      if (fourth) fourths.push(fourth);
+    for (const g of groups) {
+      const group = standings.filter(s => s.group_number === g).sort((a,b) => b.total_points - a.total_points);
+      // Top 2 de cada grupo clasifican directamente
+      classified.push(...group.filter(s => s.group_rank <= 2));
+      // Terceros van al pool de mejores terceros
+      const third = group.find(s => s.group_rank === 3);
+      if (third) thirds.push(third);
     }
 
-    // Mejor 4° lugar
-    fourths.sort((a, b) => b.total_points - a.total_points);
-    if (fourths.length > 0) classified.push(fourths[0]);
+    // Los 4 mejores terceros por puntos
+    thirds.sort((a, b) => b.total_points - a.total_points);
+    classified.push(...thirds.slice(0, 4));
 
     if (classified.length < 16) return resp(400, { error: `Solo hay ${classified.length} clasificados, se necesitan 16` });
 
@@ -727,10 +781,10 @@ exports.handler = async (event) => {
     if (event.headers['x-cron-secret'] !== process.env.CRON_SECRET) return resp(401, { error: 'No autorizado' });
 
     const now = new Date();
-    const in11 = new Date(now.getTime() + 11 * 60000);
-    const in9  = new Date(now.getTime() + 9  * 60000);
+    const in31 = new Date(now.getTime() + 31 * 60000);
+    const in29 = new Date(now.getTime() + 29 * 60000);
 
-    const { data: upcoming } = await supabase.from('matches').select('*').eq('status', 'scheduled').gte('kickoff_utc', in9.toISOString()).lte('kickoff_utc', in11.toISOString());
+    const { data: upcoming } = await supabase.from('matches').select('*').eq('status', 'scheduled').gte('kickoff_utc', in29.toISOString()).lte('kickoff_utc', in31.toISOString());
 
     for (const match of (upcoming || [])) {
       const { data: pending } = await supabase.from('pending_predictions').select('*').eq('match_id', match.id);
@@ -775,7 +829,7 @@ exports.handler = async (event) => {
     const apiKey = apiKeyConfig?.value;
     if (!apiKey) return resp(200, { message: 'API key no configurada' });
 
-    const { data: liveMatches } = await supabase.from('matches').select('*').in('status', ['live', 'scheduled']).not('api_match_id', 'is', null).lte('kickoff_utc', new Date().toISOString());
+    const { data: liveMatches } = await supabase.from('matches').select('*').eq('status', 'scheduled').not('api_match_id', 'is', null).lte('kickoff_utc', new Date().toISOString());
 
     let updated = 0;
     for (const match of (liveMatches || [])) {

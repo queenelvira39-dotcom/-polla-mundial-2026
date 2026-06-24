@@ -161,11 +161,45 @@ body{font-family:var(--font);background:#F0F4F8;color:var(--text);min-height:100
 
 .empty{text-align:center;padding:40px 20px;color:var(--text-3)}
 .empty-icon{font-size:48px;margin-bottom:12px}
+
+/* TABS POR FECHA */
+.btn-day-pts{width:100%;padding:10px;background:var(--blue-l);border:1.5px solid var(--blue);border-radius:var(--radius-sm);font-size:13px;font-weight:600;color:var(--blue);cursor:pointer;margin-bottom:10px;font-family:var(--font)}
+.btn-day-pts:active{background:var(--blue);color:white}
+.finished-section{margin-bottom:10px}
+.collapse-btn{width:100%;padding:10px 14px;background:var(--green-l);border:1px solid #A8D07A;border-radius:var(--radius-sm);font-size:13px;font-weight:600;color:var(--green);cursor:pointer;text-align:left;font-family:var(--font);display:flex;justify-content:space-between;align-items:center}
+.finished-matches{display:none}
+.collapse-arrow{font-size:11px}
+
+/* PRONÓSTICO GUARDADO — INDICADOR */
+.match-card.pred-saved{border-left:4px solid var(--green)}
+.pred-confirmed{background:var(--green-l);border-radius:var(--radius-sm);padding:6px 10px;font-size:12px;color:var(--green);font-weight:600;text-align:center;margin-top:6px}
+
+/* PRONÓSTICOS DE TODOS */
+.preds-all-section{margin-top:12px;border-top:1px solid var(--border);padding-top:10px}
+.preds-all-title{font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.pred-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:.5px solid var(--gray);font-size:13px}
+.pred-row:last-child{border-bottom:none}
+.pred-name{font-weight:500;flex:1}
+.pred-score-all{font-weight:700;color:var(--blue);min-width:50px;text-align:center}
+.pred-pts-all{font-size:11px;font-weight:600;min-width:40px;text-align:right}
+.pred-pts-green{color:var(--green)}
+.pred-pts-blue{color:var(--blue)}
+.pred-pts-gray{color:var(--text-3)}
+
+/* MODAL PUNTOS DEL DÍA */
+#day-pts-modal{display:none;position:fixed;bottom:80px;left:16px;right:16px;background:white;border-radius:var(--radius);box-shadow:0 8px 32px rgba(0,0,0,.2);z-index:200;max-width:480px;margin:0 auto}
+
+/* PERFIL EDITABLE */
+.lang-selector{display:flex;gap:8px;margin-top:8px}
+.lang-btn{flex:1;padding:9px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;background:white;color:var(--text-2);font-family:var(--font)}
+.lang-btn.active-lang{border-color:var(--blue);background:var(--blue-l);color:var(--blue)}
+.avatar-img{width:72px;height:72px;border-radius:50%;object-fit:cover;margin:0 auto 12px;display:block}
 </style>
 </head>
 <body>
 
 <div class="toast" id="toast"></div>
+<div id="day-pts-modal"></div>
 
 <!-- LOGIN -->
 <div class="screen active" id="screen-login" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:24px">
@@ -250,6 +284,78 @@ body{font-family:var(--font);background:#F0F4F8;color:var(--text);min-height:100
 
 <script>
 const API = '/.netlify/functions/api';
+
+
+// ── SISTEMA DE IDIOMAS ────────────────────────────────────────
+const LANG = {
+  es: {
+    matches:'Partidos', leaderboard:'Tabla', copa:'Copa', profile:'Perfil',
+    save:'Guardar pronóstico', saved:'✓ Guardado — toca para actualizar',
+    locked:'🔒 En juego', open:'🟢 Abierto', finished:'✓ Finalizado',
+    your_pred:'Tu pronóstico', no_pred:'🔒 No ingresaste pronóstico',
+    god_hand:'🤚 A la mano de Dios', penalties:'¿Quién gana en penales?',
+    others_preds:'Pronósticos de todos', hidden:'🔒 Por revelar',
+    pts:'puntos', pts_earned:'punto ganado', exact:'Acierto exacto',
+    today:'Hoy', date_tabs:'Por fecha', all_dates:'Todos',
+    day_pts:'Puntos del día', close:'Cerrar', stars:'Estrellas',
+    edit_profile:'Editar perfil', save_profile:'Guardar cambios',
+    name:'Nombre', photo:'URL de foto', language:'Idioma',
+    logout:'Cerrar sesión', timezone:'Zona horaria', quota:'Cuota',
+    loading:'Cargando...', error:'Error', no_matches:'Sin partidos',
+    predictions_visible:'¡Pronósticos revelados!',
+    final_warning:'Debes poner un resultado diferente al otro finalista',
+    group:'Grupo', round16:'Octavos', qf:'Cuartos', sf:'Semis', final:'Final',
+    advances:'Clasifica', eliminated:'Eliminado'
+  },
+  en: {
+    matches:'Matches', leaderboard:'Table', copa:'Cup', profile:'Profile',
+    save:'Save prediction', saved:'✓ Saved — tap to update',
+    locked:'🔒 In progress', open:'🟢 Open', finished:'✓ Finished',
+    your_pred:'Your prediction', no_pred:'🔒 You did not enter a prediction',
+    god_hand:'🤚 Hand of God', penalties:'Who wins on penalties?',
+    others_preds:'Everyone's predictions', hidden:'🔒 To be revealed',
+    pts:'points', pts_earned:'point earned', exact:'Exact score',
+    today:'Today', date_tabs:'By date', all_dates:'All',
+    day_pts:'Day points', close:'Close', stars:'Stars',
+    edit_profile:'Edit profile', save_profile:'Save changes',
+    name:'Name', photo:'Photo URL', language:'Language',
+    logout:'Sign out', timezone:'Timezone', quota:'Entry fee',
+    loading:'Loading...', error:'Error', no_matches:'No matches',
+    predictions_visible:'Predictions revealed!',
+    final_warning:'You must pick a different result from the other finalist',
+    group:'Group', round16:'Round of 16', qf:'Quarters', sf:'Semis', final:'Final',
+    advances:'Advances', eliminated:'Eliminated'
+  },
+  pt: {
+    matches:'Partidas', leaderboard:'Tabela', copa:'Copa', profile:'Perfil',
+    save:'Salvar palpite', saved:'✓ Salvo — toque para atualizar',
+    locked:'🔒 Em andamento', open:'🟢 Aberto', finished:'✓ Finalizado',
+    your_pred:'Seu palpite', no_pred:'🔒 Você não enviou palpite',
+    god_hand:'🤚 Mão de Deus', penalties:'Quem vence nos pênaltis?',
+    others_preds:'Palpites de todos', hidden:'🔒 A revelar',
+    pts:'pontos', pts_earned:'ponto ganho', exact:'Placar exato',
+    today:'Hoje', date_tabs:'Por data', all_dates:'Todos',
+    day_pts:'Pontos do dia', close:'Fechar', stars:'Estrelas',
+    edit_profile:'Editar perfil', save_profile:'Salvar mudanças',
+    name:'Nome', photo:'URL da foto', language:'Idioma',
+    logout:'Sair', timezone:'Fuso horário', quota:'Taxa de entrada',
+    loading:'Carregando...', error:'Erro', no_matches:'Sem partidas',
+    predictions_visible:'Palpites revelados!',
+    final_warning:'Você deve escolher um resultado diferente do outro finalista',
+    group:'Grupo', round16:'Oitavas', qf:'Quartas', sf:'Semis', final:'Final',
+    advances:'Classifica', eliminated:'Eliminado'
+  }
+};
+
+function t(key) {
+  const lang = localStorage.getItem('polla_lang') || 'es';
+  return (LANG[lang] && LANG[lang][key]) || LANG['es'][key] || key;
+}
+
+function setLang(lang) {
+  localStorage.setItem('polla_lang', lang);
+  location.reload();
+}
 
 // ── BANDERAS ──────────────────────────────────────────────────
 const FLAG_MAP = {
@@ -344,35 +450,147 @@ function renderHeader() {
 // ── PARTIDOS ──────────────────────────────────────────────────
 async function loadMatches() {
   const el = document.getElementById('matches-list');
-  el.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando partidos...</div>';
+  el.innerHTML = `<div class="loading"><div class="spinner"></div>${t('loading')}</div>`;
   try {
     const res = await apiFetch('/matches');
     allMatches = res.matches || [];
+    // Cargar pronósticos de todos para partidos iniciados
+    const started = allMatches.filter(m => m.status !== 'scheduled' || new Date(m.kickoff_utc) <= new Date());
+    await Promise.all(started.map(async m => {
+      try {
+        const pr = await apiFetch('/matches/' + m.id + '/predictions');
+        m.all_predictions = pr.predictions || [];
+      } catch(e) { m.all_predictions = []; }
+    }));
     renderGroupFilters();
     renderMatches();
   } catch(e) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon">😕</div>Error cargando partidos</div>';
+    el.innerHTML = `<div class="empty"><div class="empty-icon">😕</div>${t('error')}</div>`;
   }
 }
 
-function renderGroupFilters() {
-  const groups = ['ALL', ...new Set(allMatches.map(m=>m.group_name).filter(Boolean))];
-  document.getElementById('group-filters').innerHTML = groups.map(g =>
-    `<button class="filter-btn ${g===currentGroup?'active':''}" onclick="filterGroup('${g}')">${g==='ALL'?'Todos':'Grupo '+g}</button>`
-  ).join('');
+let currentDate = 'TODAY';
+
+function getMatchDate(m) {
+  return new Date(m.kickoff_utc).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
 }
 
-function filterGroup(g) {
-  currentGroup = g;
+function getTodayDate() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+}
+
+function renderGroupFilters() {
+  const today = getTodayDate();
+  // Obtener fechas únicas
+  const allDates = [...new Set(allMatches.map(m => getMatchDate(m)))].sort();
+  
+  // Si currentDate es TODAY, usar la fecha de hoy o la próxima con partidos
+  if (currentDate === 'TODAY') {
+    const todayOrNext = allDates.find(d => d >= today) || allDates[allDates.length - 1];
+    currentDate = todayOrNext;
+  }
+
+  const tabs = allDates.map(d => {
+    const dt = new Date(d + 'T12:00:00');
+    const label = d === today ? '⭐ Hoy' : dt.toLocaleDateString('es-CO', { month:'short', day:'numeric' });
+    return `<button class="filter-btn ${d===currentDate?'active':''}" onclick="filterDate('${d}')">${label}</button>`;
+  });
+
+  document.getElementById('group-filters').innerHTML = tabs.join('');
+}
+
+function filterDate(d) {
+  currentDate = d;
   renderGroupFilters();
   renderMatches();
 }
 
+async function showDayPoints(date) {
+  const dateLabel = new Date(date + 'T12:00:00').toLocaleDateString(
+    localStorage.getItem('polla_lang')==='en'?'en-US':localStorage.getItem('polla_lang')==='pt'?'pt-BR':'es-CO',
+    {weekday:'long', day:'numeric', month:'long'}
+  );
+  const el = document.getElementById('day-pts-modal');
+  if (!el) return;
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  el.style.display = 'block';
+  try {
+    const res = await apiFetch('/leaderboard/day?date=' + date);
+    const lb = res.day_leaderboard || [];
+    const medals = ['🥇','🥈','🥉'];
+    el.innerHTML = `
+      <div style="background:var(--blue);padding:12px 16px;border-radius:var(--radius) var(--radius) 0 0;display:flex;justify-content:space-between;align-items:center">
+        <div style="color:white;font-weight:600;font-size:14px">📅 ${dateLabel}</div>
+        <button onclick="document.getElementById('day-pts-modal').style.display='none'" style="background:none;border:none;color:white;font-size:20px;cursor:pointer">✕</button>
+      </div>
+      <div style="padding:12px 16px;max-height:60vh;overflow-y:auto">
+        ${lb.filter(p => p.day_points > 0).map((p,i) => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:.5px solid var(--gray)">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:16px">${i<3?medals[i]:i+1}</span>
+              <span style="font-size:14px;font-weight:${p.id===currentUser.id?'700':'400'}">${p.name}${p.id===currentUser.id?' 👤':''}</span>
+            </div>
+            <span style="font-size:16px;font-weight:700;color:var(--blue)">${p.day_points}</span>
+          </div>`).join('')}
+        ${lb.filter(p => p.day_points === 0).length > 0 ? `
+          <div style="margin-top:8px;padding-top:8px;border-top:.5px solid var(--gray)">
+            ${lb.filter(p => p.day_points === 0).map(p => `
+              <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;color:var(--text-3)">
+                <span>${p.name}</span><span>0 pts</span>
+              </div>`).join('')}
+          </div>` : ''}
+      </div>`;
+  } catch(e) {
+    el.innerHTML = '<div style="padding:16px;color:var(--red)">Error cargando puntos</div>';
+  }
+}
+
 function renderMatches() {
   const el = document.getElementById('matches-list');
-  const filtered = currentGroup === 'ALL' ? allMatches : allMatches.filter(m=>m.group_name===currentGroup);
-  if (!filtered.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">📅</div>Sin partidos</div>'; return; }
-  el.innerHTML = filtered.map(m => renderMatchCard(m)).join('');
+  const filtered = allMatches.filter(m => getMatchDate(m) === currentDate);
+  
+  // Separar finalizados y próximos
+  const finished = filtered.filter(m => m.status === 'finished');
+  const upcoming = filtered.filter(m => m.status !== 'finished');
+  
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📅</div>Sin partidos este día</div>';
+    return;
+  }
+
+  let html = '';
+  
+  // Botón puntos del día (si hay partidos finalizados)
+  if (finished.length > 0) {
+    html += `<button class="btn-day-pts" onclick="showDayPoints('${currentDate}')">📊 Ver puntos del día</button>`;
+  }
+
+  // Partidos finalizados — colapsados por defecto
+  if (finished.length > 0) {
+    html += `<div class="finished-section">
+      <button class="collapse-btn" onclick="toggleFinished(this)">
+        ✓ ${finished.length} partido${finished.length!==1?'s':''} finalizado${finished.length!==1?'s':''} <span class="collapse-arrow">▼</span>
+      </button>
+      <div class="finished-matches" id="finished-matches-${currentDate}">
+        ${finished.map(m => renderMatchCard(m)).join('')}
+      </div>
+    </div>`;
+  }
+
+  // Partidos próximos/en juego — siempre visibles
+  if (upcoming.length > 0) {
+    html += upcoming.map(m => renderMatchCard(m)).join('');
+  }
+
+  el.innerHTML = html;
+}
+
+function toggleFinished(btn) {
+  const container = btn.nextElementSibling;
+  const arrow = btn.querySelector('.collapse-arrow');
+  const isHidden = container.style.display === 'none' || container.style.display === '';
+  container.style.display = isHidden ? 'block' : 'none';
+  arrow.textContent = isHidden ? '▲' : '▼';
 }
 
 function renderMatchCard(m) {
@@ -466,8 +684,29 @@ function renderMatchCard(m) {
     inputHtml = `<div style="text-align:center;padding:12px;color:var(--text-3);font-size:13px">🔒 No ingresaste pronóstico</div>`;
   }
 
+  // Sección pronósticos de todos (después de iniciar)
+  let allPredsHtml = '';
+  const now2 = new Date();
+  const matchStarted2 = m.status !== 'scheduled' || new Date(m.kickoff_utc) <= now2;
+  if (matchStarted2 && m.all_predictions && m.all_predictions.length > 0) {
+    const rows = m.all_predictions.map(p => {
+      const isMe = p.participant_id === currentUser.id;
+      const ptsColor = p.points_earned >= 4 ? 'pred-pts-green' : p.points_earned > 0 ? 'pred-pts-blue' : 'pred-pts-gray';
+      const ptsLabel = p.points_earned != null ? p.points_earned + ' pts' : '';
+      return `<div class="pred-row${isMe?' lb-me':''}">
+        <div class="pred-name">${p.participant_name}${isMe?' 👤':''}</div>
+        <div class="pred-score-all">${p.hidden ? '🔒' : (p.pred_score_a + ' - ' + p.pred_score_b)}</div>
+        <div class="pred-pts-all ${ptsColor}">${ptsLabel}</div>
+      </div>`;
+    }).join('');
+    allPredsHtml = `<div class="preds-all-section">
+      <div class="preds-all-title">${t('others_preds')}</div>
+      ${rows}
+    </div>`;
+  }
+
   return `
-    <div class="match-card" id="match-${m.id}">
+    <div class="match-card ${m.my_prediction ? 'pred-saved' : ''}" id="match-${m.id}">
       <div class="match-badge">
         <span class="badge-left">${m.phase==='group'?'Grupo '+m.group_name:m.phase?.toUpperCase()} · #${m.match_number}</span>
         <span class="badge-right ${statusClass}">${statusText}</span>
@@ -486,6 +725,7 @@ function renderMatchCard(m) {
           </div>
         </div>
         ${inputHtml}
+        ${allPredsHtml}
       </div>
     </div>
   `;
@@ -570,10 +810,13 @@ async function savePrediction(matchId) {
       const el = document.getElementById('match-'+matchId);
       if (el) el.outerHTML = renderMatchCard(m);
     }
-    showToast('✓ Pronóstico guardado');
+    // Indicador visual en el card
+    const cardEl = document.getElementById('match-' + matchId);
+    if (cardEl) cardEl.classList.add('pred-saved');
+    showToast('✓ ' + t('save'));
   } catch(e) {
-    showToast('❌ Error al guardar');
-    if (btn) { btn.disabled = false; btn.textContent = 'Guardar pronóstico'; }
+    showToast('❌ ' + t('error'));
+    if (btn) { btn.disabled = false; btn.textContent = t('save'); }
   }
 }
 
@@ -593,11 +836,12 @@ async function loadLeaderboard() {
       let deltaHtml = '<span class="lb-delta delta-eq">—</span>';
       if (delta > 0) deltaHtml = `<span class="lb-delta delta-up">↑${delta}</span>`;
       else if (delta < 0) deltaHtml = `<span class="lb-delta delta-dn">↓${Math.abs(delta)}</span>`;
+      const starsHtml = p.total_stars > 0 ? ' ⭐'.repeat(Math.min(p.total_stars,5)) + (p.total_stars>5?' +'+(p.total_stars-5):'') : '';
       return `<div class="lb-row ${isMe?'lb-me':''}">
         <div class="lb-rank">${i<3?medals[i]:i+1}</div>
         <div>
-          <div class="lb-name">${p.name}${isMe?' <span style="font-size:11px;color:var(--blue)">← Tú</span>':''}</div>
-          <div style="font-size:11px;color:var(--text-3)">G:${p.pts_scores||0} R:${p.pts_winners||0} P:${p.pts_penalties||0}</div>
+          <div class="lb-name">${p.name}${isMe?' <span style="font-size:11px;color:var(--blue)">← Tú</span>':''}<span style="font-size:11px;color:#D4A017">${starsHtml}</span></div>
+          <div style="font-size:11px;color:var(--text-3)">G:${p.pts_scores||0} R:${p.pts_winners||0} P:${p.pts_penalties||0}${p.total_exact>0?' · '+p.total_exact+' exactos':''}</div>
         </div>
         <div class="lb-pts">${p.total_points}</div>
         ${deltaHtml}
@@ -612,8 +856,8 @@ function renderStats(lb) {
   document.getElementById('stats-grid').innerHTML = `
     <div class="stat-card"><div class="stat-num">${me?.total_points??0}</div><div class="stat-label">Mis puntos</div></div>
     <div class="stat-card"><div class="stat-num">${me?.current_rank??'—'}</div><div class="stat-label">Mi posición</div></div>
-    <div class="stat-card"><div class="stat-num">${lb.length}</div><div class="stat-label">Participantes</div></div>
-    <div class="stat-card"><div class="stat-num">${played}</div><div class="stat-label">Partidos jugados</div></div>
+    <div class="stat-card"><div class="stat-num">${me?.total_stars??0} ⭐</div><div class="stat-label">${t('stars')}</div></div>
+    <div class="stat-card"><div class="stat-num">${me?.total_exact??0}</div><div class="stat-label">Exactos</div></div>
   `;
 }
 
@@ -697,17 +941,64 @@ function renderProfile() {
   const p = currentUser;
   const ini = p.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const tzLabels = {'America/Bogota':'🇨🇴 Colombia','America/Sao_Paulo':'🇧🇷 Brasil','America/New_York':'🇺🇸 USA/Florida'};
+  const lang = localStorage.getItem('polla_lang') || 'es';
+  const avatarHtml = p.photo_url
+    ? `<img src="${p.photo_url}" class="avatar-img" onerror="this.style.display='none';document.getElementById('av-letters').style.display='flex'">`
+    : '';
   document.getElementById('profile-card').innerHTML = `
-    <div class="profile-avatar">${ini}</div>
+    ${avatarHtml}
+    <div class="profile-avatar" id="av-letters" style="${p.photo_url?'display:none':'display:flex'};align-items:center;justify-content:center">${ini}</div>
     <div class="profile-name">${p.name}</div>
     <div class="profile-role">${p.role==='admin'?'⚙️ Administrador':'👤 Participante'}</div>
     <div style="margin-top:16px">
-      <div class="info-row"><span class="info-label">Correo</span><span class="info-value" style="font-size:13px">${p.email}</span></div>
-      <div class="info-row"><span class="info-label">Zona horaria</span><span class="info-value">${tzLabels[p.timezone]||p.timezone}</span></div>
-      <div class="info-row"><span class="info-label">Cuota</span><span class="info-value">$${p.cuota?.toLocaleString()}</span></div>
+      <div class="info-row"><span class="info-label">Email</span><span class="info-value" style="font-size:13px">${p.email}</span></div>
+      <div class="info-row"><span class="info-label">${t('timezone')}</span><span class="info-value">${tzLabels[p.timezone]||p.timezone}</span></div>
+      <div class="info-row"><span class="info-label">${t('quota')}</span><span class="info-value">$${p.cuota?.toLocaleString()}</span></div>
     </div>
-    <button class="logout-btn" onclick="logout()">Cerrar sesión</button>
+
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <div class="card-title">${t('edit_profile')}</div>
+      <div class="form-group-profile">
+        <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:5px">${t('name')}</label>
+        <input id="edit-name" style="width:100%;height:42px;padding:0 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font)" value="${p.name}" maxlength="50">
+      </div>
+      <div class="form-group-profile" style="margin-top:10px">
+        <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:5px">${t('photo')} (URL)</label>
+        <input id="edit-photo" style="width:100%;height:42px;padding:0 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font)" placeholder="https://..." value="${p.photo_url||''}">
+      </div>
+      <div style="margin-top:12px">
+        <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px">${t('language')}</label>
+        <div class="lang-selector">
+          <button class="lang-btn ${lang==='es'?'active-lang':''}" onclick="setLang('es')">🇨🇴 ES</button>
+          <button class="lang-btn ${lang==='en'?'active-lang':''}" onclick="setLang('en')">🇺🇸 EN</button>
+          <button class="lang-btn ${lang==='pt'?'active-lang':''}" onclick="setLang('pt')">🇧🇷 PT</button>
+        </div>
+      </div>
+      <button style="width:100%;padding:12px;background:var(--blue);color:white;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font);margin-top:14px" onclick="saveProfile()">${t('save_profile')}</button>
+      <div id="profile-save-result" style="margin-top:8px;text-align:center;font-size:13px"></div>
+    </div>
+    <button class="logout-btn" onclick="logout()" style="margin-top:12px">${t('logout')}</button>
   `;
+}
+
+async function saveProfile() {
+  const name = document.getElementById('edit-name')?.value.trim();
+  const photo_url = document.getElementById('edit-photo')?.value.trim();
+  const resEl = document.getElementById('profile-save-result');
+  if (!name) { resEl.textContent = '❌ El nombre no puede estar vacío'; resEl.style.color='var(--red)'; return; }
+  resEl.textContent = '...';
+  try {
+    const res = await apiFetch('/profile/update', 'POST', { name, photo_url: photo_url || null });
+    if (res.error) { resEl.textContent = '❌ ' + res.error; resEl.style.color='var(--red)'; return; }
+    currentUser = res.participant;
+    resEl.textContent = '✅ Guardado';
+    resEl.style.color = 'var(--green)';
+    document.getElementById('header-name').textContent = currentUser.name;
+    setTimeout(() => renderProfile(), 800);
+  } catch(e) {
+    resEl.textContent = '❌ Error al guardar';
+    resEl.style.color = 'var(--red)';
+  }
 }
 
 function logout() { localStorage.removeItem('polla_token'); location.reload(); }

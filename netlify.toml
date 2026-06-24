@@ -50,10 +50,8 @@
     Cache-Control = "no-store"
 
 # ── CRON JOBS ─────────────────────────────────────────────────
-# Descomenta estas líneas cuando pases a producción:
-# CRON JOBS — Desactivados durante pruebas
-# Activar SOLO para produccion final:
-# [functions."scheduled-reminders"]
-#   schedule = "*/5 * * * *"
-# [functions."scheduled-sync"]
-#   schedule = "*/15 * * * *"
+[functions."scheduled-reminders"]
+  schedule = "*/30 * * * *"
+
+[functions."scheduled-sync"]
+  schedule = "*/20 * * * *"
