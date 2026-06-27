@@ -102,7 +102,7 @@ function emailReminder(participant, match) {
   const link = `${base}/app?token=${participant.access_token}`;
   const kickoff = formatDate(match.kickoff_utc, participant.timezone);
   return {
-    subject: `⏰ ¡Faltan 10 minutos! ${match.team_a} vs ${match.team_b}`,
+    subject: `⏰ ¡Faltan 30 minutos! ${match.team_a} vs ${match.team_b}`,
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
       <div style="background:#854F0B;padding:20px;border-radius:12px 12px 0 0;text-align:center">
         <h1 style="color:white;margin:0;font-size:20px">⏰ ¡Último aviso!</h1>

@@ -354,7 +354,24 @@ function t(key) {
 
 function setLang(lang) {
   localStorage.setItem('polla_lang', lang);
-  location.reload();
+  // Actualizar botones activos sin recargar
+  document.querySelectorAll('.lang-btn').forEach(b => {
+    b.classList.remove('active-lang');
+    if (b.textContent.toLowerCase().includes(lang)) b.classList.add('active-lang');
+  });
+  // Re-renderizar tab activo para aplicar traducciones
+  const activeTab = document.querySelector('.tab-btn.active');
+  if (activeTab) {
+    const onclickVal = activeTab.getAttribute('onclick') || '';
+    const tabMatch = onclickVal.match(/showTab\('([^']+)'/);
+    if (tabMatch) showTab(tabMatch[1], activeTab);
+    else {
+      // Fallback: actualizar lo que se pueda sin recargar
+      renderGroupFilters();
+      renderMatches();
+    }
+  }
+  showToast(lang === 'es' ? '🇨🇴 Español' : lang === 'en' ? '🇺🇸 English' : '🇧🇷 Português');
 }
 
 // ── BANDERAS ──────────────────────────────────────────────────
@@ -885,7 +902,7 @@ async function loadCopa() {
       gEl.innerHTML = groups.map(g => {
         const players = standings.filter(s=>s.group_number===g).sort((a,b)=>b.total_points-a.total_points);
         const rows = players.map((p,i) => {
-          const advances = i < 3;
+          const advances = p.advances === true || p.advances === 'true';
           const isMe = p.participant_id === currentUser.id;
           return `<div class="copa-row" style="${isMe?'background:var(--blue-l);border-radius:6px;':''}">
             <div class="copa-pos ${advances?'q':''}">${i+1}</div>

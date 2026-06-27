@@ -50,8 +50,4 @@
     Cache-Control = "no-store"
 
 # ── CRON JOBS ─────────────────────────────────────────────────
-[functions."scheduled-reminders"]
-  schedule = "*/30 * * * *"
-
-[functions."scheduled-sync"]
-  schedule = "*/20 * * * *"
+# CRON JOBS DESACTIVADOS — ingreso manual de resultados
