@@ -108,6 +108,8 @@ body{font-family:var(--font);background:#F0F4F8;color:var(--text);min-height:100
 .delta-dn{color:var(--red)}
 .delta-eq{color:var(--text-3)}
 .lb-me{background:var(--blue-l);border-radius:var(--radius-sm);padding:0 8px;margin:0 -8px}
+.lb-medio{background:#FFFBF0}
+.lb-b{background:#FFF5F5}
 
 /* STATS */
 .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
@@ -236,6 +238,9 @@ body{font-family:var(--font);background:#F0F4F8;color:var(--text);min-height:100
       <p>Clasificación en tiempo real</p>
     </div>
     <div class="stats-grid" id="stats-grid"></div>
+    <div id="sub-table-banner" style="display:none;background:var(--amber-l);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:10px;font-size:12px;color:var(--amber);font-weight:600;text-align:center">
+      🏆 Tabla dividida en sub-grupos · Top 8 / Medio 8 / Serie B
+    </div>
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div class="card-title" style="margin:0">Posiciones</div>
@@ -471,14 +476,7 @@ async function loadMatches() {
   try {
     const res = await apiFetch('/matches');
     allMatches = res.matches || [];
-    // Cargar pronósticos de todos para partidos iniciados
-    const started = allMatches.filter(m => m.status !== 'scheduled' || new Date(m.kickoff_utc) <= new Date());
-    await Promise.all(started.map(async m => {
-      try {
-        const pr = await apiFetch('/matches/' + m.id + '/predictions');
-        m.all_predictions = pr.predictions || [];
-      } catch(e) { m.all_predictions = []; }
-    }));
+    // Lazy-load: pronósticos se cargan al tocar cada partido individualmente
     renderGroupFilters();
     renderMatches();
   } catch(e) {
@@ -701,10 +699,15 @@ function renderMatchCard(m) {
     inputHtml = `<div style="text-align:center;padding:12px;color:var(--text-3);font-size:13px">🔒 No ingresaste pronóstico</div>`;
   }
 
-  // Sección pronósticos de todos (después de iniciar)
-  let allPredsHtml = '';
+  // Lazy-load: disparar carga de pronósticos si el partido ya inició
   const now2 = new Date();
   const matchStarted2 = m.status !== 'scheduled' || new Date(m.kickoff_utc) <= now2;
+  if (matchStarted2 && !m.all_predictions) {
+    // Carga diferida — se ejecuta después del render sin bloquear
+    setTimeout(() => loadMatchPredictions(m.id), 50);
+  }
+
+  let allPredsHtml = '';
   if (matchStarted2 && m.all_predictions && m.all_predictions.length > 0) {
     const rows = m.all_predictions.map(p => {
       const isMe = p.participant_id === currentUser.id;
@@ -759,6 +762,21 @@ function getOrInit(matchId) {
     };
   }
   return pendingScores[matchId];
+}
+
+async function loadMatchPredictions(matchId) {
+  const m = allMatches.find(x => x.id === matchId);
+  if (!m || m.all_predictions) return; // ya cargados
+  const now = new Date();
+  const started = m.status !== 'scheduled' || new Date(m.kickoff_utc) <= now;
+  if (!started) return; // partido no iniciado, no hay nada que cargar
+  try {
+    const pr = await apiFetch('/matches/' + matchId + '/predictions');
+    m.all_predictions = pr.predictions || [];
+    // Re-renderizar solo este card
+    const el = document.getElementById('match-' + matchId);
+    if (el) el.outerHTML = renderMatchCard(m);
+  } catch(e) { m.all_predictions = []; }
 }
 
 function changeScore(matchId, side, delta) {
@@ -842,9 +860,19 @@ async function loadLeaderboard() {
   const el = document.getElementById('lb-body');
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
+    // Verificar si la división está activa
+    const splitRes = await apiFetch('/leaderboard/subtables');
+    const splitActive = splitRes.split_active;
+
     const res = await apiFetch('/leaderboard');
     const lb = res.leaderboard || [];
     renderStats(lb);
+
+    // Mostrar banner de sub-tablas si está activo
+    const subBanner = document.getElementById('sub-table-banner');
+    if (subBanner) {
+      subBanner.style.display = splitActive ? 'block' : 'none';
+    }
     if (!lb.length) { el.innerHTML = '<div class="empty">Sin puntos aún</div>'; return; }
     el.innerHTML = lb.map((p, i) => {
       const medals = ['🥇','🥈','🥉'];
@@ -854,8 +882,12 @@ async function loadLeaderboard() {
       if (delta > 0) deltaHtml = `<span class="lb-delta delta-up">↑${delta}</span>`;
       else if (delta < 0) deltaHtml = `<span class="lb-delta delta-dn">↓${Math.abs(delta)}</span>`;
       const starsHtml = p.total_stars > 0 ? ' ⭐'.repeat(Math.min(p.total_stars,5)) + (p.total_stars>5?' +'+(p.total_stars-5):'') : '';
-      return `<div class="lb-row ${isMe?'lb-me':''}">
-        <div class="lb-rank">${i<3?medals[i]:i+1}</div>
+      const rank = p.current_rank || i+1;
+      // Línea divisoria antes de posición 9 y 17
+      const divider9 = rank === 9 ? '<div style="border-top:2px dashed var(--amber);margin:4px -8px;padding-top:4px;font-size:10px;color:var(--amber);font-weight:600;text-align:center">── Tabla Mediocre ──</div>' : '';
+      const divider17 = rank === 17 ? '<div style="border-top:2px dashed var(--red);margin:4px -8px;padding-top:4px;font-size:10px;color:var(--red);font-weight:600;text-align:center">── Serie B ──</div>' : '';
+      return divider9 + divider17 + `<div class="lb-row ${isMe?'lb-me':''} ${rank>=9&&rank<=16?'lb-medio':''} ${rank>=17?'lb-b':''}">
+        <div class="lb-rank">${i<3?medals[i]:rank}</div>
         <div>
           <div class="lb-name">${p.name}${isMe?' <span style="font-size:11px;color:var(--blue)">← Tú</span>':''}<span style="font-size:11px;color:#D4A017">${starsHtml}</span></div>
           <div style="font-size:11px;color:var(--text-3)">G:${p.pts_scores||0} R:${p.pts_winners||0} P:${p.pts_penalties||0}${p.total_exact>0?' · '+p.total_exact+' exactos':''}</div>

@@ -237,6 +237,20 @@ body{font-family:var(--font);background:#F0F4F8;color:var(--text);min-height:100
     <button class="btn btn-primary btn-full" onclick="showToast('Actualiza las variables de entorno en Netlify')">Ver instrucciones</button>
   </div>
   <div class="card">
+    <div class="card-title">División de tabla en 3 sub-tablas</div>
+    <p style="font-size:12px;color:var(--text-2);margin-bottom:12px;line-height:1.6">
+      Cuando actives la división, los jugadores quedan congelados en su sub-tabla (Top 8 / Medio 8 / Serie B) 
+      según su posición en ese momento. Ingresa el número del partido después del cual se divide la tabla.
+    </p>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <input id="split-match-num" type="number" class="form-input" placeholder="Ej: 88" min="1" max="104" style="flex:1;height:44px">
+      <button class="btn btn-amber" onclick="activateSplit()" style="white-space:nowrap">Activar división</button>
+      <button class="btn" onclick="activateSplit(0)" style="white-space:nowrap;color:var(--red)">Desactivar</button>
+    </div>
+    <div id="split-result" style="font-size:12px;margin-top:4px"></div>
+  </div>
+
+  <div class="card">
     <div class="card-title">Zona de peligro</div>
     <div class="alert alert-danger" style="margin-bottom:12px">⚠️ Reset borra TODOS los jugadores y pronósticos. Solo funciona en modo Pruebas.</div>
     <button class="btn btn-red btn-full" onclick="confirmReset()">🗑️ Reset total</button>
@@ -845,6 +859,21 @@ async function confirmReset() {
 function copyText(id) {
   const txt = document.getElementById(id)?.textContent;
   navigator.clipboard.writeText(txt).then(()=>showToast('✓ Copiado'));
+}
+
+async function activateSplit(forceNum) {
+  const num = forceNum !== undefined ? forceNum : parseInt(document.getElementById('split-match-num')?.value);
+  const resEl = document.getElementById('split-result');
+  if (isNaN(num) || num < 0) { resEl && (resEl.textContent = '❌ Ingresa un número de partido válido'); return; }
+  try {
+    const res = await apiFetch('/admin/config/split', 'POST', { match_number: num });
+    if (res.error) { resEl && (resEl.textContent = '❌ ' + res.error); return; }
+    if (resEl) {
+      resEl.textContent = num === 0 ? '✅ División desactivada' : `✅ División activada después del partido #${num}`;
+      resEl.style.color = 'var(--green)';
+    }
+    showToast(num === 0 ? 'División desactivada' : `División activada: partido #${num}`);
+  } catch(e) { resEl && (resEl.textContent = '❌ Error'); }
 }
 
 function logout() { localStorage.removeItem('polla_token'); localStorage.removeItem('polla_mode'); location.href='/app'; }

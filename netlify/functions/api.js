@@ -534,6 +534,23 @@ exports.handler = async (event) => {
     return resp(200, { day_leaderboard: result, date });
   }
 
+  // ── SUB-TABLAS (Top/Medio/Serie B) ──────────────────────────
+  if (path === '/leaderboard/subtables' && method === 'GET') {
+    const participant = await getParticipantByToken(token);
+    if (!participant) return resp(401, { error: 'No autorizado' });
+    const { data } = await supabase
+      .from('sub_leaderboard')
+      .select('*')
+      .order('sub_rank');
+    const { data: cfg } = await supabase
+      .from('config')
+      .select('value')
+      .eq('key', 'split_match_number')
+      .single();
+    const splitActive = parseInt(cfg?.value || '0') > 0;
+    return resp(200, { sub_leaderboard: data || [], split_active: splitActive });
+  }
+
   // ── TABLA DE POSICIONES ───────────────────────────────────
   if (path === '/leaderboard' && method === 'GET') {
     const participant = await getParticipantByToken(token);
@@ -627,6 +644,27 @@ exports.handler = async (event) => {
     }).eq('id', matchId);
 
     await supabase.rpc('calculate_match_points', { p_match_id: matchId });
+
+    // Auto-estrellas: si no quedan partidos del día sin terminar, calcular estrellas y snapshot
+    const matchDate = (await supabase.from('matches').select('kickoff_utc').eq('id', matchId).single()).data?.kickoff_utc;
+    if (matchDate) {
+      const dayStart = new Date(new Date(matchDate).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) + 'T05:00:00Z');
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+      const { data: pendingMatches } = await supabase
+        .from('matches')
+        .select('id')
+        .gte('kickoff_utc', dayStart.toISOString())
+        .lt('kickoff_utc', dayEnd.toISOString())
+        .eq('is_test', false)
+        .neq('status', 'finished');
+      if (!pendingMatches || pendingMatches.length === 0) {
+        const bogotaDate = new Date(matchDate).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+        await supabase.rpc('calculate_daily_stars', { p_date: bogotaDate });
+        await supabase.rpc('take_daily_snapshot');
+        console.log('[AUTO] Estrellas y snapshot calculados para', bogotaDate);
+      }
+    }
+
     return resp(200, { success: true });
   }
 
@@ -764,6 +802,16 @@ exports.handler = async (event) => {
     await supabase.from('matches').update({ score_a: null, score_b: null, went_to_penalties: false, penalty_winner: null, status: 'scheduled' }).eq('is_test', true);
 
     return resp(200, { success: true });
+  }
+
+  // ── ADMIN: ACTIVAR SPLIT DE TABLA ───────────────────────────
+  if (path === '/admin/config/split' && method === 'POST') {
+    const participant = await getParticipantByToken(token);
+    if (!requireAdmin(participant)) return resp(403, { error: 'Solo admins' });
+    const { match_number } = body;
+    await supabase.from('config')
+      .upsert({ key: 'split_match_number', value: String(match_number || 0) }, { onConflict: 'key' });
+    return resp(200, { success: true, split_match_number: match_number });
   }
 
   // ── ADMIN: CAMBIAR MODO ───────────────────────────────────
