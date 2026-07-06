@@ -108,7 +108,7 @@ body{font-family:var(--font);background:#F0F4F8;color:var(--text);min-height:100
 .delta-dn{color:var(--red)}
 .delta-eq{color:var(--text-3)}
 .lb-me{background:var(--blue-l);border-radius:var(--radius-sm);padding:0 8px;margin:0 -8px}
-.lb-medio{background:#FFFBF0}
+.lb-repechaje{background:#FFFBF0}
 .lb-b{background:#FFF5F5}
 
 /* STATS */
@@ -136,6 +136,30 @@ body{font-family:var(--font);background:#F0F4F8;color:var(--text);min-height:100
 .bracket-pts{font-size:13px;font-weight:700;color:var(--blue);min-width:32px;text-align:center}
 .bracket-vs{font-size:11px;color:var(--text-3);margin:0 8px}
 .bracket-winner{color:var(--green)}
+
+/* BRACKET HORIZONTAL ESTILO FIFA */
+.bracket-scroll{overflow-x:auto;padding-bottom:12px;-webkit-overflow-scrolling:touch}
+.bracket-scroll::-webkit-scrollbar{height:4px}
+.bracket-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.bracket-fifa{display:flex;gap:0;min-width:max-content;padding:12px 4px}
+.bracket-round{display:flex;flex-direction:column;justify-content:space-around;min-width:140px}
+.bracket-round-title{font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;text-align:center;margin-bottom:8px;padding:0 8px}
+.bracket-connector{display:flex;align-items:center}
+.bracket-line{width:20px;flex-shrink:0}
+.bracket-line svg{display:block}
+.bk-match{background:white;border:1.5px solid var(--border);border-radius:8px;margin:4px 0;overflow:hidden;min-width:130px}
+.bk-player{display:flex;align-items:center;padding:6px 8px;font-size:11px;font-weight:500;gap:4px;border-bottom:.5px solid var(--gray)}
+.bk-player:last-child{border-bottom:none}
+.bk-player.winner{background:var(--green-l);color:var(--green);font-weight:700}
+.bk-player.loser{color:var(--text-3)}
+.bk-player.tbd{color:var(--text-3);font-style:italic}
+.bk-pts{margin-left:auto;font-weight:700;font-size:11px;color:var(--blue)}
+.bk-pts.winner-pts{color:var(--green)}
+.bracket-champion{display:flex;flex-direction:column;justify-content:center;align-items:center;padding:0 12px}
+.champion-card{background:linear-gradient(135deg,#F5A623,#D68910);border-radius:12px;padding:14px 16px;text-align:center;min-width:130px}
+.champion-emoji{font-size:32px;display:block;margin-bottom:6px}
+.champion-name{font-size:14px;font-weight:700;color:white}
+.champion-label{font-size:10px;color:rgba(255,255,255,.8);margin-top:2px}
 
 /* FILTER TABS */
 .filter-row{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px}
@@ -217,6 +241,20 @@ body{font-family:var(--font);background:#F0F4F8;color:var(--text);min-height:100
 <!-- APP PRINCIPAL -->
 <div id="app" style="display:none">
 
+<!-- PANTALLA FINAL DE GANADORES -->
+<div id="screen-winners" style="display:none;position:fixed;inset:0;background:linear-gradient(135deg,#0D1B3E,#185FA5);z-index:500;overflow-y:auto;padding:24px 16px 100px">
+  <canvas id="confetti-canvas" style="position:fixed;inset:0;pointer-events:none;z-index:501"></canvas>
+  <div style="max-width:480px;margin:0 auto;position:relative;z-index:502">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:56px;line-height:1">🏆</div>
+      <h1 style="font-family:sans-serif;font-size:28px;font-weight:800;color:#F5A623;margin:8px 0 4px;letter-spacing:1px">¡CAMPEONES!</h1>
+      <p style="font-size:14px;color:rgba(255,255,255,.75)">Polla Mundial 2026 — Resultados finales</p>
+    </div>
+    <div id="winners-content"></div>
+    <button onclick="document.getElementById('screen-winners').style.display='none'" style="width:100%;padding:14px;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);border-radius:12px;color:white;font-size:14px;font-weight:600;cursor:pointer;margin-top:16px">Cerrar</button>
+  </div>
+</div>
+
   <!-- PANTALLA: PARTIDOS -->
   <div class="screen active" id="screen-matches">
     <div class="app-header">
@@ -239,12 +277,15 @@ body{font-family:var(--font);background:#F0F4F8;color:var(--text);min-height:100
     </div>
     <div class="stats-grid" id="stats-grid"></div>
     <div id="sub-table-banner" style="display:none;background:var(--amber-l);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:10px;font-size:12px;color:var(--amber);font-weight:600;text-align:center">
-      🏆 Tabla dividida en sub-grupos · Top 8 / Medio 8 / Serie B
+      🏆 Tabla dividida en sub-grupos · Top 8 / Repechaje / Serie B
     </div>
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div class="card-title" style="margin:0">Posiciones</div>
-        <div style="font-size:11px;color:var(--text-3)">↑↓ vs ayer</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="font-size:11px;color:var(--text-3)">↑↓ vs ayer</div>
+          <button id="btn-winners" onclick="showWinners()" style="display:none;padding:4px 10px;background:#F5A623;border:none;border-radius:100px;font-size:11px;font-weight:600;cursor:pointer;color:white">🏆 Ganadores</button>
+        </div>
       </div>
       <div id="lb-body"><div class="loading"><div class="spinner"></div></div></div>
     </div>
@@ -257,11 +298,11 @@ body{font-family:var(--font);background:#F0F4F8;color:var(--text);min-height:100
       <p>Tu torneo dentro del torneo</p>
     </div>
     <div class="filter-row">
-      <button class="filter-btn active" onclick="showCopaTab('groups',this)">Grupos</button>
-      <button class="filter-btn" onclick="showCopaTab('bracket',this)">Eliminatorias</button>
+      <button class="filter-btn active" onclick="showCopaTab('bracket',this)">Eliminatorias</button>
+      <button class="filter-btn" onclick="showCopaTab('groups',this)">Grupos (fase grupos)</button>
     </div>
-    <div id="copa-groups-view"></div>
-    <div id="copa-bracket-view" style="display:none"></div>
+    <div id="copa-groups-view" style="display:none"></div>
+    <div id="copa-bracket-view"></div>
   </div>
 
   <!-- PANTALLA: PERFIL -->
@@ -449,6 +490,7 @@ function showCopaTab(tab, btn) {
   btn.classList.add('active');
   document.getElementById('copa-groups-view').style.display = tab === 'groups' ? 'block' : 'none';
   document.getElementById('copa-bracket-view').style.display = tab === 'bracket' ? 'block' : 'none';
+  // Bracket es el tab por defecto
 }
 
 async function apiFetch(path, method='GET', body=null, tokenOverride=null) {
@@ -475,8 +517,8 @@ async function loadMatches() {
   el.innerHTML = `<div class="loading"><div class="spinner"></div>${t('loading')}</div>`;
   try {
     const res = await apiFetch('/matches');
+    // all_predictions ya viene incluido por partido — una sola llamada, sin N requests extra
     allMatches = res.matches || [];
-    // Lazy-load: pronósticos se cargan al tocar cada partido individualmente
     renderGroupFilters();
     renderMatches();
   } catch(e) {
@@ -496,8 +538,17 @@ function getTodayDate() {
 
 function renderGroupFilters() {
   const today = getTodayDate();
-  // Obtener fechas únicas
-  const allDates = [...new Set(allMatches.map(m => getMatchDate(m)))].sort();
+  // Ocultar fase de grupos (partidos 1-72) para reducir scroll
+  const visibleMatches = allMatches.filter(m => {
+    const num = m.match_number || 0;
+    if (num >= 1 && num <= 72) {
+      // Solo mostrar si tiene partido hoy o es futuro
+      return getMatchDate(m) >= today;
+    }
+    return true; // eliminatorias siempre visibles
+  });
+  // Obtener fechas únicas de partidos visibles
+  const allDates = [...new Set(visibleMatches.map(m => getMatchDate(m)))].sort();
   
   // Si currentDate es TODAY, usar la fecha de hoy o la próxima con partidos
   if (currentDate === 'TODAY') {
@@ -562,7 +613,14 @@ async function showDayPoints(date) {
 
 function renderMatches() {
   const el = document.getElementById('matches-list');
-  const filtered = allMatches.filter(m => getMatchDate(m) === currentDate);
+  const today = getTodayDate();
+  // Filtrar: ocultar grupos pasados (1-72) pero mostrar eliminatorias siempre
+  const visible = allMatches.filter(m => {
+    const num = m.match_number || 0;
+    if (num >= 1 && num <= 72 && getMatchDate(m) < today) return false;
+    return true;
+  });
+  const filtered = visible.filter(m => getMatchDate(m) === currentDate);
   
   // Separar finalizados y próximos
   const finished = filtered.filter(m => m.status === 'finished');
@@ -699,13 +757,9 @@ function renderMatchCard(m) {
     inputHtml = `<div style="text-align:center;padding:12px;color:var(--text-3);font-size:13px">🔒 No ingresaste pronóstico</div>`;
   }
 
-  // Lazy-load: disparar carga de pronósticos si el partido ya inició
+  // Lazy-load: el cargado real ocurre vía loadVisiblePredictions() después del render completo
   const now2 = new Date();
   const matchStarted2 = m.status !== 'scheduled' || new Date(m.kickoff_utc) <= now2;
-  if (matchStarted2 && !m.all_predictions) {
-    // Carga diferida — se ejecuta después del render sin bloquear
-    setTimeout(() => loadMatchPredictions(m.id), 50);
-  }
 
   let allPredsHtml = '';
   if (matchStarted2 && m.all_predictions && m.all_predictions.length > 0) {
@@ -762,21 +816,6 @@ function getOrInit(matchId) {
     };
   }
   return pendingScores[matchId];
-}
-
-async function loadMatchPredictions(matchId) {
-  const m = allMatches.find(x => x.id === matchId);
-  if (!m || m.all_predictions) return; // ya cargados
-  const now = new Date();
-  const started = m.status !== 'scheduled' || new Date(m.kickoff_utc) <= now;
-  if (!started) return; // partido no iniciado, no hay nada que cargar
-  try {
-    const pr = await apiFetch('/matches/' + matchId + '/predictions');
-    m.all_predictions = pr.predictions || [];
-    // Re-renderizar solo este card
-    const el = document.getElementById('match-' + matchId);
-    if (el) el.outerHTML = renderMatchCard(m);
-  } catch(e) { m.all_predictions = []; }
 }
 
 function changeScore(matchId, side, delta) {
@@ -860,9 +899,20 @@ async function loadLeaderboard() {
   const el = document.getElementById('lb-body');
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
+    // Cargar premios para mostrar al líder
+    apiFetch('/prizes').then(r => { window._prizes = r.prizes || {}; });
     // Verificar si la división está activa
     const splitRes = await apiFetch('/leaderboard/subtables');
     const splitActive = splitRes.split_active;
+    // Mostrar/ocultar botón ganadores según config
+    const winnersBtn = document.getElementById('btn-winners');
+    if (winnersBtn) {
+      apiFetch('/winners').then(() => {
+        if (winnersBtn) winnersBtn.style.display = 'inline-block';
+      }).catch(() => {
+        if (winnersBtn) winnersBtn.style.display = 'none';
+      });
+    }
 
     const res = await apiFetch('/leaderboard');
     const lb = res.leaderboard || [];
@@ -870,33 +920,78 @@ async function loadLeaderboard() {
 
     // Mostrar banner de sub-tablas si está activo
     const subBanner = document.getElementById('sub-table-banner');
-    if (subBanner) {
-      subBanner.style.display = splitActive ? 'block' : 'none';
-    }
+    if (subBanner) subBanner.style.display = splitActive ? 'block' : 'none';
     if (!lb.length) { el.innerHTML = '<div class="empty">Sin puntos aún</div>'; return; }
-    el.innerHTML = lb.map((p, i) => {
-      const medals = ['🥇','🥈','🥉'];
-      const isMe = p.id === currentUser.id;
-      const delta = p.rank_delta || 0;
-      let deltaHtml = '<span class="lb-delta delta-eq">—</span>';
-      if (delta > 0) deltaHtml = `<span class="lb-delta delta-up">↑${delta}</span>`;
-      else if (delta < 0) deltaHtml = `<span class="lb-delta delta-dn">↓${Math.abs(delta)}</span>`;
-      const starsHtml = p.total_stars > 0 ? ' ⭐'.repeat(Math.min(p.total_stars,5)) + (p.total_stars>5?' +'+(p.total_stars-5):'') : '';
-      const rank = p.current_rank || i+1;
-      // Línea divisoria antes de posición 9 y 17
-      const divider9 = rank === 9 ? '<div style="border-top:2px dashed var(--amber);margin:4px -8px;padding-top:4px;font-size:10px;color:var(--amber);font-weight:600;text-align:center">── Tabla Mediocre ──</div>' : '';
-      const divider17 = rank === 17 ? '<div style="border-top:2px dashed var(--red);margin:4px -8px;padding-top:4px;font-size:10px;color:var(--red);font-weight:600;text-align:center">── Serie B ──</div>' : '';
-      return divider9 + divider17 + `<div class="lb-row ${isMe?'lb-me':''} ${rank>=9&&rank<=16?'lb-medio':''} ${rank>=17?'lb-b':''}">
-        <div class="lb-rank">${i<3?medals[i]:rank}</div>
-        <div>
-          <div class="lb-name">${p.name}${isMe?' <span style="font-size:11px;color:var(--blue)">← Tú</span>':''}<span style="font-size:11px;color:#D4A017">${starsHtml}</span></div>
-          <div style="font-size:11px;color:var(--text-3)">G:${p.pts_scores||0} R:${p.pts_winners||0} P:${p.pts_penalties||0}${p.total_exact>0?' · '+p.total_exact+' exactos':''}</div>
-        </div>
-        <div class="lb-pts">${p.total_points}</div>
-        ${deltaHtml}
-      </div>`;
-    }).join('');
-  } catch(e) { el.innerHTML = '<div class="empty">Error cargando tabla</div>'; }
+
+    const fmt = (v) => parseInt(v||0).toLocaleString('es-CO');
+    const medals = ['🥇','🥈','🥉'];
+
+    if (splitActive) {
+      // ── MODO SUB-TABLAS: posiciones congeladas por grupo ──
+      const subData = splitRes.sub_leaderboard || [];
+      const pr = window._prizes || {};
+      const sections = [
+        { key: 'top',       label: '🏆 TOP 8',    color: '#D68910', bg: '#FEF9EE', p1k: 'prize_1_top',       p2k: 'prize_2_top' },
+        { key: 'repechaje', label: '🔁 REPECHAJE', color: '#185FA5', bg: '#E6F1FB', p1k: 'prize_1_repechaje', p2k: null },
+        { key: 'b',         label: '📋 SERIE B',   color: '#8892A4', bg: '#F4F5F6', p1k: 'prize_1_b',         p2k: null },
+      ];
+      el.innerHTML = sections.map(sec => {
+        const players = subData.filter(p => p.sub_table === sec.key).sort((a,b) => a.sub_rank - b.sub_rank);
+        if (!players.length) return '';
+        const rows = players.map((p, i) => {
+          const isMe = p.id === currentUser.id;
+          const starsHtml = p.total_stars > 0 ? ' ⭐'.repeat(Math.min(p.total_stars,5)) : '';
+          const prizeLabel = (() => {
+            if (p.sub_rank === 1 && pr[sec.p1k]) return ` <span style="font-size:10px;background:${sec.bg};color:${sec.color};padding:1px 6px;border-radius:100px;font-weight:600">🏆 $${fmt(pr[sec.p1k])}</span>`;
+            if (p.sub_rank === 2 && sec.p2k && pr[sec.p2k]) return ` <span style="font-size:10px;background:${sec.bg};color:${sec.color};padding:1px 6px;border-radius:100px;font-weight:600">🥈 $${fmt(pr[sec.p2k])}</span>`;
+            return '';
+          })();
+          return `<div class="lb-row ${isMe?'lb-me':''}">
+            <div class="lb-rank">${i<3?medals[i]:p.sub_rank}</div>
+            <div>
+              <div class="lb-name">${p.name}${isMe?' <span style="font-size:11px;color:var(--blue)">← Tú</span>':''}${prizeLabel}<span style="font-size:11px;color:#D4A017">${starsHtml}</span></div>
+              <div style="font-size:11px;color:var(--text-3)">G:${p.pts_scores||0} R:${p.pts_winners||0} P:${p.pts_penalties||0}${p.total_exact>0?' · '+p.total_exact+' exactos':''}</div>
+            </div>
+            <div class="lb-pts">${p.total_points}</div>
+            <span style="font-size:10px;color:var(--text-3);min-width:28px;text-align:right">#${p.frozen_rank||''}</span>
+          </div>`;
+        }).join('');
+        return `<div style="margin-bottom:14px">
+          <div style="border-left:4px solid ${sec.color};background:${sec.bg};border-radius:var(--radius-sm);padding:7px 12px;margin-bottom:6px;font-size:12px;font-weight:700;color:${sec.color}">${sec.label}</div>
+          ${rows}
+        </div>`;
+      }).join('');
+
+    } else {
+      // ── MODO NORMAL: tabla general completa ──
+      el.innerHTML = lb.map((p, i) => {
+        const isMe = p.id === currentUser.id;
+        const delta = p.rank_delta || 0;
+        let deltaHtml = '<span class="lb-delta delta-eq">—</span>';
+        if (delta > 0) deltaHtml = `<span class="lb-delta delta-up">↑${delta}</span>`;
+        else if (delta < 0) deltaHtml = `<span class="lb-delta delta-dn">↓${Math.abs(delta)}</span>`;
+        const starsHtml = p.total_stars > 0 ? ' ⭐'.repeat(Math.min(p.total_stars,5)) + (p.total_stars>5?' +'+(p.total_stars-5):'') : '';
+        const rank = p.current_rank || i+1;
+        const pr = window._prizes || {};
+        const prizeLabel = (() => {
+          if (rank===1 && pr.prize_1_top) return ` <span style="font-size:10px;background:#FEF3D7;color:#D68910;padding:1px 6px;border-radius:100px;font-weight:600">🏆 $${fmt(pr.prize_1_top)}</span>`;
+          if (rank===2 && pr.prize_2_top) return ` <span style="font-size:10px;background:#EAF3DE;color:#27500A;padding:1px 6px;border-radius:100px;font-weight:600">🥈 $${fmt(pr.prize_2_top)}</span>`;
+          return '';
+        })();
+        const divider9  = rank===9  ? '<div style="border-top:2px dashed var(--amber);margin:4px -8px;padding-top:4px;font-size:10px;color:var(--amber);font-weight:600;text-align:center">── Repechaje ──</div>' : '';
+        const divider17 = rank===17 ? '<div style="border-top:2px dashed var(--red);margin:4px -8px;padding-top:4px;font-size:10px;color:var(--red);font-weight:600;text-align:center">── Serie B ──</div>' : '';
+        return divider9 + divider17 + `<div class="lb-row ${isMe?'lb-me':''} ${rank>=9&&rank<=16?'lb-repechaje':''} ${rank>=17?'lb-b':''}">
+          <div class="lb-rank">${i<3?medals[i]:rank}</div>
+          <div>
+            <div class="lb-name">${p.name}${isMe?' <span style="font-size:11px;color:var(--blue)">← Tú</span>':''}${prizeLabel}<span style="font-size:11px;color:#D4A017">${starsHtml}</span></div>
+            <div style="font-size:11px;color:var(--text-3)">G:${p.pts_scores||0} R:${p.pts_winners||0} P:${p.pts_penalties||0}${p.total_exact>0?' · '+p.total_exact+' exactos':''}</div>
+          </div>
+          <div class="lb-pts">${p.total_points}</div>
+          ${deltaHtml}
+        </div>`;
+      }).join('');
+    }
+    } catch(e) { el.innerHTML = '<div class="empty">Error cargando tabla</div>'; }
 }
 
 function renderStats(lb) {
@@ -914,8 +1009,9 @@ function renderStats(lb) {
 async function loadCopa() {
   const gEl = document.getElementById('copa-groups-view');
   const bEl = document.getElementById('copa-bracket-view');
-  gEl.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando Copa...</div>';
-  bEl.innerHTML = '';
+  // Bracket es el tab activo por defecto ahora
+  bEl.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando Copa...</div>';
+  gEl.innerHTML = '';
 
   try {
     const [standRes, bracketRes] = await Promise.all([
@@ -953,32 +1049,80 @@ async function loadCopa() {
       }).join('');
     }
 
-    // Bracket
+    // Bracket horizontal estilo FIFA
     if (!bracket.length) {
       bEl.innerHTML = '<div class="empty"><div class="empty-icon">🏆</div>Las eliminatorias empezarán<br>cuando termine la fase de grupos.</div>';
     } else {
-      const phases = { r16:'Octavos de final', qf:'Cuartos de final', sf:'Semifinales', final:'Final', third:'Tercer puesto' };
-      const phaseOrder = ['r16','qf','sf','final'];
-      bEl.innerHTML = phaseOrder.map(ph => {
-        const matches = bracket.filter(b=>b.phase===ph);
-        if (!matches.length) return '';
-        return `<div class="bracket-card">
-          <div style="font-size:12px;font-weight:700;color:var(--blue-d);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em">${phases[ph]||ph}</div>
-          ${matches.map(b => {
-            const nameA = b.participant_a?.name || '—';
-            const nameB = b.participant_b?.name || '—';
-            const winnerA = b.winner_id === b.participant_a_id;
-            const winnerB = b.winner_id === b.participant_b_id;
-            return `<div class="bracket-match">
-              <div class="bracket-player ${winnerA?'bracket-winner':''}">${nameA}${winnerA?' 🏆':''}</div>
-              <div class="bracket-pts">${b.pts_a||0}</div>
-              <div class="bracket-vs">vs</div>
-              <div class="bracket-pts">${b.pts_b||0}</div>
-              <div class="bracket-player" style="text-align:right">${winnerB?'🏆 ':''}${nameB}</div>
-            </div>`;
-          }).join('')}
+      const phaseOrder = ['r16','qf','sf'];
+      const phaseLabels = { r16:'Octavos', qf:'Cuartos', sf:'Semis' };
+      const finalMatch = bracket.find(b => b.phase === 'final');
+      const champion = finalMatch?.winner_id
+        ? (finalMatch.winner_id === finalMatch.participant_a_id ? finalMatch.participant_a : finalMatch.participant_b)
+        : null;
+
+      function mkMatch(b) {
+        if (!b) return '<div class="bk-match"><div class="bk-player tbd">TBD</div><div class="bk-player tbd">TBD</div></div>';
+        const nameA = b.participant_a?.name || 'TBD';
+        const nameB = b.participant_b?.name || 'TBD';
+        const wA = b.winner_id && b.winner_id === b.participant_a_id;
+        const wB = b.winner_id && b.winner_id === b.participant_b_id;
+        const isMe = b.participant_a_id === currentUser.id || b.participant_b_id === currentUser.id;
+        return `<div class="bk-match" style="${isMe?'border-color:var(--blue);':''}" >
+          <div class="bk-player ${wA?'winner':b.winner_id?'loser':''}" >
+            <span>${nameA === 'TBD' ? '?' : nameA.split(' ')[0]}</span>
+            ${b.pts_a!=null?`<span class="bk-pts ${wA?'winner-pts':''}">${b.pts_a}</span>`:''}
+          </div>
+          <div class="bk-player ${wB?'winner':b.winner_id?'loser':''}" >
+            <span>${nameB === 'TBD' ? '?' : nameB.split(' ')[0]}</span>
+            ${b.pts_b!=null?`<span class="bk-pts ${wB?'winner-pts':''}">${b.pts_b}</span>`:''}
+          </div>
         </div>`;
-      }).join('');
+      }
+
+      // Construir columnas por fase
+      let html = '<div class="bracket-scroll"><div class="bracket-fifa">';
+
+      phaseOrder.forEach(ph => {
+        const phMatches = bracket.filter(b => b.phase === ph);
+        if (!phMatches.length) return;
+        html += `<div class="bracket-round">
+          <div class="bracket-round-title">${phaseLabels[ph]}</div>
+          ${phMatches.map(b => mkMatch(b)).join('<div style="height:8px"></div>')}
+        </div>
+        <div class="bracket-line">
+          <svg width="20" height="${phMatches.length * 70}" viewBox="0 0 20 ${phMatches.length * 70}" fill="none" xmlns="http://www.w3.org/2000/svg">
+          ${phMatches.map((_,i) => {
+            const y1 = i * 70 + 25; const y2 = i % 2 === 0 ? y1 + 70 : y1 - 70;
+            const mid = (y1 + Math.min(y1,y2) + 25);
+            return `<line x1="0" y1="${y1}" x2="10" y2="${y1}" stroke="#E2E4E8" stroke-width="1.5"/>
+                    <line x1="10" y1="${y1}" x2="10" y2="${(y1+y2)/2}" stroke="#E2E4E8" stroke-width="1.5"/>`;
+          }).join('')}
+          </svg>
+        </div>`;
+      });
+
+      // Final
+      html += `<div class="bracket-round">
+        <div class="bracket-round-title">Final</div>
+        ${finalMatch ? mkMatch(finalMatch) : '<div class="bk-match"><div class="bk-player tbd">TBD</div><div class="bk-player tbd">TBD</div></div>'}
+      </div>`;
+
+      // Campeón
+      if (champion) {
+        html += `<div class="bracket-champion">
+          <div class="champion-card">
+            <span class="champion-emoji">🏆</span>
+            <div class="champion-name">${champion.name}</div>
+            <div class="champion-label">Campeón Copa</div>
+          </div>
+        </div>`;
+      }
+
+      html += '</div></div>';
+
+      // Nota de scroll
+      html += '<p style="font-size:10px;color:var(--text-3);text-align:center;margin-top:6px">← Desliza para ver todo el bracket →</p>';
+      bEl.innerHTML = html;
     }
   } catch(e) {
     gEl.innerHTML = '<div class="empty">Error cargando Copa</div>';
@@ -1048,6 +1192,71 @@ async function saveProfile() {
     resEl.textContent = '❌ Error al guardar';
     resEl.style.color = 'var(--red)';
   }
+}
+
+async function showWinners() {
+  const screen = document.getElementById('screen-winners');
+  screen.style.display = 'block';
+  document.getElementById('winners-content').innerHTML = '<div style="text-align:center;color:white;padding:40px">Cargando...</div>';
+  try {
+    const res = await apiFetch('/winners');
+    const w = res.winners;
+    const card = (emoji, title, name, prize, color) => `
+      <div style="background:rgba(255,255,255,.1);border-radius:14px;padding:16px;margin-bottom:10px;border:1px solid rgba(255,255,255,.2)">
+        <div style="font-size:11px;font-weight:600;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${title}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:28px">${emoji}</span>
+            <span style="font-size:18px;font-weight:700;color:white">${name || '—'}</span>
+          </div>
+          ${prize ? `<span style="background:${color};color:white;padding:5px 12px;border-radius:100px;font-size:13px;font-weight:700">$${prize} COP</span>` : ''}
+        </div>
+      </div>`;
+    document.getElementById('winners-content').innerHTML = `
+      ${card('🥇','Campeón TOP 8', w.top?.first?.name, w.top?.prize_first, '#D68910')}
+      ${card('🥈','Subcampeón TOP 8', w.top?.second?.name, w.top?.prize_second, '#708090')}
+      ${card('🏅','1° Repechaje', w.repechaje?.first?.name, w.repechaje?.prize_first, '#185FA5')}
+      ${card('🎖️','1° Serie B', w.serie_b?.first?.name, w.serie_b?.prize_first, '#3B6D11')}
+      ${card('🏆','Campeón Copa', w.copa?.champion?.name, w.copa?.prize_champion, '#C0392B')}
+      ${card('🥈','Subcampeón Copa', w.copa?.runner_up?.name, w.copa?.prize_runner_up, '#854F0B')}
+      <div style="text-align:center;margin-top:16px;color:rgba(255,255,255,.6);font-size:12px">Pozo total: <strong style="color:#F5A623">$${w.total_pool} COP</strong></div>`;
+    startConfetti();
+  } catch(e) {
+    document.getElementById('winners-content').innerHTML = '<div style="color:rgba(255,255,255,.7);text-align:center">Error cargando ganadores</div>';
+  }
+}
+
+function startConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const pieces = Array.from({length: 120}, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height - canvas.height,
+    w: Math.random() * 10 + 5, h: Math.random() * 6 + 3,
+    r: Math.random() * Math.PI * 2,
+    d: Math.random() * 3 + 1,
+    color: ['#F5A623','#185FA5','#C0392B','#27500A','#FFFFFF','#F5A623'][Math.floor(Math.random()*6)],
+    tilt: Math.random() * 10 - 5, tiltAngle: 0, tiltSpeed: Math.random() * 0.1 + 0.05
+  }));
+  let frame = 0;
+  const animate = () => {
+    if (frame++ > 300) { ctx.clearRect(0,0,canvas.width,canvas.height); return; }
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    pieces.forEach(p => {
+      p.tiltAngle += p.tiltSpeed;
+      p.y += p.d; p.x += Math.sin(p.tiltAngle) * 1.5;
+      p.tilt = Math.sin(p.tiltAngle) * 12;
+      if (p.y > canvas.height) { p.y = -10; p.x = Math.random() * canvas.width; }
+      ctx.beginPath(); ctx.fillStyle = p.color;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.restore();
+    });
+    requestAnimationFrame(animate);
+  };
+  animate();
 }
 
 function logout() { localStorage.removeItem('polla_token'); location.reload(); }

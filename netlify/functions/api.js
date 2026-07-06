@@ -277,6 +277,38 @@ exports.handler = async (event) => {
   let body = {};
   try { body = JSON.parse(event.body || '{}'); } catch (e) {}
 
+  // ── PREMIOS: VER ─────────────────────────────────────────────
+  if (path === '/prizes' && method === 'GET') {
+    const participant = await getParticipantByToken(token);
+    if (!participant) return resp(401, { error: 'No autorizado' });
+    const { data } = await supabase.from('config')
+      .select('key, value')
+      .in('key', ['prize_1_top','prize_2_top','prize_1_repechaje','prize_1_b','prize_1_copa','prize_2_copa','prize_pool_total']);
+    const prizes = {};
+    (data || []).forEach(r => { prizes[r.key] = r.value; });
+    return resp(200, { prizes });
+  }
+
+  // ── PREMIOS: CONFIGURAR (admin) ───────────────────────────────
+  if (path === '/admin/prizes' && method === 'POST') {
+    const participant = await getParticipantByToken(token);
+    if (!requireAdmin(participant)) return resp(403, { error: 'Solo admins' });
+    const { prize_1_top, prize_2_top, prize_1_repechaje, prize_1_b, prize_1_copa, prize_2_copa, prize_pool_total } = body;
+    const updates = [
+      { key: 'prize_1_top', value: String(prize_1_top || 0) },
+      { key: 'prize_2_top', value: String(prize_2_top || 0) },
+      { key: 'prize_1_repechaje', value: String(prize_1_repechaje || 0) },
+      { key: 'prize_1_b', value: String(prize_1_b || 0) },
+      { key: 'prize_1_copa', value: String(prize_1_copa || 0) },
+      { key: 'prize_2_copa', value: String(prize_2_copa || 0) },
+      { key: 'prize_pool_total', value: String(prize_pool_total || 0) },
+    ];
+    for (const u of updates) {
+      await supabase.from('config').upsert(u, { onConflict: 'key' });
+    }
+    return resp(200, { success: true });
+  }
+
   // ── ACTUALIZAR PERFIL ───────────────────────────────────────
   if (path === '/profile/update' && method === 'POST') {
     const participant = await getParticipantByToken(token);
@@ -320,10 +352,47 @@ exports.handler = async (event) => {
     (myPreds || []).forEach(p => { predMap[p.match_id] = p; });
 
     const now = new Date();
+
+    // Una sola consulta batch para TODOS los pronósticos de partidos iniciados
+    // (en vez de N llamadas, una por partido)
+    const startedMatchIds = (matches || [])
+      .filter(m => m.status !== 'scheduled' || new Date(m.kickoff_utc) <= now)
+      .map(m => m.id);
+
+    let allPredsByMatch = {};
+    if (startedMatchIds.length > 0) {
+      const { data: allPreds } = await supabase
+        .from('predictions')
+        .select('*')
+        .in('match_id', startedMatchIds);
+
+      const participantIds = [...new Set((allPreds || []).map(p => p.participant_id))];
+      const { data: allParts } = await supabase
+        .from('participants')
+        .select('id, name')
+        .in('id', participantIds.length > 0 ? participantIds : ['00000000-0000-0000-0000-000000000000']);
+      const nameMap = {};
+      (allParts || []).forEach(p => { nameMap[p.id] = p.name; });
+
+      (allPreds || []).forEach(p => {
+        if (!allPredsByMatch[p.match_id]) allPredsByMatch[p.match_id] = [];
+        allPredsByMatch[p.match_id].push({
+          participant_id: p.participant_id,
+          participant_name: nameMap[p.participant_id] || 'Jugador',
+          pred_score_a: p.pred_score_a,
+          pred_score_b: p.pred_score_b,
+          pred_penalty_winner: p.pred_penalty_winner,
+          points_earned: p.points_earned,
+          hidden: false
+        });
+      });
+    }
+
     const enriched = (matches || []).map(m => ({
       ...m,
       my_prediction: predMap[m.id] || null,
-      is_locked: m.status !== 'scheduled' || new Date(m.kickoff_utc) <= now
+      is_locked: m.status !== 'scheduled' || new Date(m.kickoff_utc) <= now,
+      all_predictions: allPredsByMatch[m.id] || null
     }));
 
     return resp(200, { matches: enriched });
@@ -783,6 +852,37 @@ exports.handler = async (event) => {
     return resp(200, { summary: data });
   }
 
+  // ── GANADORES FINALES ────────────────────────────────────────
+  if (path === '/winners' && method === 'GET') {
+    const participant = await getParticipantByToken(token);
+    if (!participant) return resp(401, { error: 'No autorizado' });
+    // Solo admins o si show_winners está activo
+    const { data: showCfg } = await supabase.from('config').select('value').eq('key','show_winners').single();
+    const showWinners = showCfg?.value === 'true' || requireAdmin(participant);
+    if (!showWinners) return resp(403, { error: 'La página de ganadores no está disponible aún' });
+    const { data: lb } = await supabase.from('leaderboard').select('*').order('rank');
+    const { data: sub } = await supabase.from('sub_leaderboard').select('*').order('sub_rank');
+    const { data: cfg } = await supabase.from('config').select('key,value')
+      .in('key',['split_match_number','prize_1_top','prize_2_top','prize_1_repechaje','prize_1_b','prize_1_copa','prize_2_copa','prize_pool_total']);
+    const cfgMap = {};
+    (cfg || []).forEach(c => { cfgMap[c.key] = c.value; });
+    const splitActive = parseInt(cfgMap['split_match_number'] || '0') > 0;
+    const getFirst = (t) => (sub || []).find(p => p.sub_table === t && p.sub_rank === 1);
+    const getSecond = (t) => (sub || []).find(p => p.sub_table === t && p.sub_rank === 2);
+    const { data: bracket } = await supabase.from('copa_bracket')
+      .select('*, participant_a:participant_a_id(name,photo_url), participant_b:participant_b_id(name,photo_url), winner:winner_id(name,photo_url)')
+      .eq('phase', 'final').single();
+    const fmt = (v) => v ? parseInt(v).toLocaleString('es-CO') : '0';
+    return resp(200, { winners: {
+      split_active: splitActive,
+      top: { first: getFirst('top'), second: getSecond('top'), prize_first: fmt(cfgMap['prize_1_top']), prize_second: fmt(cfgMap['prize_2_top']) },
+      repechaje: { first: getFirst('repechaje'), prize_first: fmt(cfgMap['prize_1_repechaje']) },
+      serie_b: { first: getFirst('b'), prize_first: fmt(cfgMap['prize_1_b']) },
+      copa: { champion: bracket?.winner, runner_up: bracket?.winner_id === bracket?.participant_a_id ? bracket?.participant_b : bracket?.participant_a, prize_champion: fmt(cfgMap['prize_1_copa']), prize_runner_up: fmt(cfgMap['prize_2_copa']) },
+      total_pool: fmt(cfgMap['prize_pool_total']),
+    }, finished: true });
+  }
+
   // ── ADMIN: RESET ──────────────────────────────────────────
   if (path === '/admin/reset' && method === 'POST') {
     const participant = await getParticipantByToken(token);
@@ -802,6 +902,15 @@ exports.handler = async (event) => {
     await supabase.from('matches').update({ score_a: null, score_b: null, went_to_penalties: false, penalty_winner: null, status: 'scheduled' }).eq('is_test', true);
 
     return resp(200, { success: true });
+  }
+
+  // ── ADMIN: ACTIVAR PÁGINA DE GANADORES ──────────────────────
+  if (path === '/admin/config/winners' && method === 'POST') {
+    const participant = await getParticipantByToken(token);
+    if (!requireAdmin(participant)) return resp(403, { error: 'Solo admins' });
+    const { show } = body;
+    await supabase.from('config').upsert({ key: 'show_winners', value: show ? 'true' : 'false' }, { onConflict: 'key' });
+    return resp(200, { success: true, show_winners: show });
   }
 
   // ── ADMIN: ACTIVAR SPLIT DE TABLA ───────────────────────────

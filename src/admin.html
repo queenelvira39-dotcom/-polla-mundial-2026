@@ -199,17 +199,21 @@ body{font-family:var(--font);background:#F0F4F8;color:var(--text);min-height:100
   </div>
 
   <div class="card">
-    <div class="card-title">Premios</div>
-    <p style="font-size:12px;color:var(--text-3);margin-bottom:12px">Porcentajes del pozo total. Deben sumar 100%.</p>
+    <div class="card-title">Configurar premios (COP)</div>
+    <p style="font-size:12px;color:var(--text-2);margin-bottom:12px;line-height:1.5">
+      Ingresa el valor en pesos de cada premio. Se mostrará al lado del líder de cada sub-tabla.
+    </p>
     <div class="form-grid">
-      <div class="form-group"><label>1° General (%)</label><input class="form-input" id="prize-1g" type="number" value="40" min="0" max="100"></div>
-      <div class="form-group"><label>2° General (%)</label><input class="form-input" id="prize-2g" type="number" value="20" min="0" max="100"></div>
-      <div class="form-group"><label>3° General (%)</label><input class="form-input" id="prize-3g" type="number" value="15" min="0" max="100"></div>
-      <div class="form-group"><label>1° Copa (%)</label><input class="form-input" id="prize-1c" type="number" value="15" min="0" max="100"></div>
-      <div class="form-group"><label>2° Copa (%)</label><input class="form-input" id="prize-2c" type="number" value="10" min="0" max="100"></div>
+      <div class="form-group"><label>Pozo total</label><input class="form-input" id="prize-pool" type="number" placeholder="0"></div>
+      <div class="form-group"><label>1° TOP</label><input class="form-input" id="prize-1-top" type="number" placeholder="0"></div>
+      <div class="form-group"><label>2° TOP</label><input class="form-input" id="prize-2-top" type="number" placeholder="0"></div>
+      <div class="form-group"><label>1° Repechaje</label><input class="form-input" id="prize-1-rep" type="number" placeholder="0"></div>
+      <div class="form-group"><label>1° Serie B</label><input class="form-input" id="prize-1-b" type="number" placeholder="0"></div>
+      <div class="form-group"><label>1° Copa</label><input class="form-input" id="prize-1-copa" type="number" placeholder="0"></div>
+      <div class="form-group"><label>2° Copa</label><input class="form-input" id="prize-2-copa" type="number" placeholder="0"></div>
     </div>
-    <button class="btn btn-primary btn-full" onclick="calcPrizes()">Calcular premios</button>
-    <div id="prizes-result" style="margin-top:12px"></div>
+    <button class="btn btn-primary btn-full" onclick="savePrizes()">Guardar premios</button>
+    <div id="prizes-result" style="margin-top:10px"></div>
   </div>
 </div>
 
@@ -236,6 +240,18 @@ body{font-family:var(--font);background:#F0F4F8;color:var(--text);min-height:100
     <div class="form-group"><label>Gmail remitente</label><input class="form-input" id="cfg-gmail" type="email" placeholder="polla2026@gmail.com"></div>
     <button class="btn btn-primary btn-full" onclick="showToast('Actualiza las variables de entorno en Netlify')">Ver instrucciones</button>
   </div>
+  <div class="card">
+    <div class="card-title">Página de ganadores 🏆</div>
+    <p style="font-size:12px;color:var(--text-2);margin-bottom:12px;line-height:1.6">
+      Activa la página de ganadores después de la final del Mundial. Todos los jugadores verán la animación con confeti y los premios.
+    </p>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-green" onclick="toggleWinners(true)">✅ Activar ganadores</button>
+      <button class="btn" onclick="toggleWinners(false)" style="color:var(--red)">Desactivar</button>
+    </div>
+    <div id="winners-toggle-result" style="font-size:12px;margin-top:8px"></div>
+  </div>
+
   <div class="card">
     <div class="card-title">División de tabla en 3 sub-tablas</div>
     <p style="font-size:12px;color:var(--text-2);margin-bottom:12px;line-height:1.6">
@@ -772,23 +788,23 @@ async function loadCopaBracketAdmin() {
 }
 
 // ── PREMIOS ───────────────────────────────────────────────────
-async function calcPrizes() {
-  const pcts = [
-    parseInt(document.getElementById('prize-1g').value)||0,
-    parseInt(document.getElementById('prize-2g').value)||0,
-    parseInt(document.getElementById('prize-3g').value)||0,
-    parseInt(document.getElementById('prize-1c').value)||0,
-    parseInt(document.getElementById('prize-2c').value)||0,
-  ];
-  const total = pcts.reduce((a,b)=>a+b,0);
-  const pool = allParticipants.reduce((s,p)=>s+(p.cuota||0),0);
+async function savePrizes() {
   const el = document.getElementById('prizes-result');
-  if (total!==100) { el.innerHTML = `<div class="alert alert-warning">Los porcentajes suman ${total}% — deben sumar exactamente 100%</div>`; return; }
-  const labels = ['1° General','2° General','3° General','1° Copa','2° Copa'];
-  el.innerHTML = `<div class="alert alert-success">
-    <strong>Premio total: $${pool.toLocaleString()}</strong><br><br>
-    ${pcts.map((p,i)=>`${labels[i]}: $${Math.round(pool*p/100).toLocaleString()} (${p}%)`).join('<br>')}
-  </div>`;
+  const body = {
+    prize_pool_total: parseInt(document.getElementById('prize-pool').value)||0,
+    prize_1_top: parseInt(document.getElementById('prize-1-top').value)||0,
+    prize_2_top: parseInt(document.getElementById('prize-2-top').value)||0,
+    prize_1_repechaje: parseInt(document.getElementById('prize-1-rep').value)||0,
+    prize_1_b: parseInt(document.getElementById('prize-1-b').value)||0,
+    prize_1_copa: parseInt(document.getElementById('prize-1-copa').value)||0,
+    prize_2_copa: parseInt(document.getElementById('prize-2-copa').value)||0,
+  };
+  try {
+    const res = await apiFetch('/admin/prizes','POST', body);
+    if (res.error) { el.innerHTML = `<div class="alert alert-danger">❌ ${res.error}</div>`; return; }
+    el.innerHTML = '<div class="alert alert-success">✅ Premios guardados — se muestran en la tabla de todos los jugadores</div>';
+    showToast('✅ Premios guardados');
+  } catch(e) { el.innerHTML = '<div class="alert alert-danger">Error guardando premios</div>'; }
 }
 
 // ── RECORDATORIOS ─────────────────────────────────────────────
@@ -859,6 +875,17 @@ async function confirmReset() {
 function copyText(id) {
   const txt = document.getElementById(id)?.textContent;
   navigator.clipboard.writeText(txt).then(()=>showToast('✓ Copiado'));
+}
+
+async function toggleWinners(show) {
+  const el = document.getElementById('winners-toggle-result');
+  try {
+    const res = await apiFetch('/admin/config/winners', 'POST', { show });
+    if (res.error) { el.textContent = '❌ ' + res.error; return; }
+    el.textContent = show ? '✅ Página de ganadores activada para todos' : '⭕ Desactivada';
+    el.style.color = show ? 'var(--green)' : 'var(--red)';
+    showToast(show ? '🏆 ¡Ganadores activados!' : 'Ganadores desactivados');
+  } catch(e) { el.textContent = '❌ Error'; }
 }
 
 async function activateSplit(forceNum) {
